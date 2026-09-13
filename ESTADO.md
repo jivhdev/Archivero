@@ -12,7 +12,16 @@
   - Creada la carpeta `preguntas/` vacía.
 
 ## Siguiente paso
-- Empezar por REQ-001 (Primera configuración: elegir/crear la carpeta observada) de `SPEC.md`, en formato de entrega acotada.
+- REQ-001 implementado en la rama `feature/req-001-primera-configuracion`, PR abierto: https://github.com/jivhdev/Archivero/pull/1
+- Falta: que Javier lo pruebe a mano (pasos en el PR) y confirme antes de mergear. Después, seguir con REQ-002 (guardado automático de un documento ya identificado).
+
+### REQ-001 — qué se construyó
+- Proyecto WPF (.NET 8) creado en `src/Archivero`, solución `Archivero.sln`.
+- SQLite (`Microsoft.Data.Sqlite`) para la tabla `Configuracion` (clave/valor), guardada en `%LocalAppData%\Archivero\archivero.db`.
+- `Servicios/CarpetaObservadaService.cs`: sugiere nombre/ubicación por defecto, valida colisión, crea la carpeta y la marca como observada.
+- `Vistas/OnboardingWindow.xaml(.cs)`: asistente de primera configuración.
+- `MainWindow` es un placeholder temporal (solo confirma la carpeta observada) — la ventana principal real es REQ-005, todavía no construida.
+- Se instaló el SDK de .NET 8 en esta máquina (no estaba presente).
 
 ## Decisiones abiertas / dudas para el usuario
 Ver la sección "Open issues" de `SPEC.md`:
