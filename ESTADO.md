@@ -102,10 +102,11 @@ LICENSE (MIT, Javier Valdebenito, 2026). Ícono (`src/Archivero/Recursos/icono.i
 Hay un proceso en background (mencionado en `AGENTS.md`) que hace commits automáticos ("Sync automatico: ...") a este repo con la identidad de Javier, incluso a mitad de una sesión de trabajo. La mayoría de las veces es inofensivo (solo hace que aparezca un commit intermedio con código a medio terminar en el historial), pero **una vez alcanzó a comitear localmente el ejecutable de 161MB de `publish/`** en una rama que todavía no tenía la regla de `.gitignore` que lo excluye (se creó antes de mergear la rama de empaquetado). Se detectó y se deshizo (`git reset`) antes de pushear — nunca llegó a GitHub, pero pudo haber roto el push (GitHub rechaza archivos de más de 100MB). Ver memoria `project-vault-auto-sync`: antes de pushear una rama nueva, conviene revisar si hay un commit "Sync automatico" con algo grande adentro.
 
 ## Decisiones abiertas / dudas para el usuario
-Ver la sección "Open issues" de `SPEC.md`:
-- Nombres finales de interfaz pendientes (no bloquean el desarrollo).
-- Elección final de la licencia de código, pendiente de qué librería .NET de PDFium se use.
-- Alcance exacto de la "personalización visual liviana".
+- Nombres finales de interfaz pendientes (no bloquean el desarrollo) — ver "Open issues" de `SPEC.md`: la sección "pendientes por reconocer", la sección "configuraciones/identificaciones/identidades", el botón de revisar/actualizar disponibilidad, la opción de "vincular a configuración existente".
+
+Ya resueltas (quedan solo como referencia histórica):
+- Licencia de código: MIT, confirmada una vez verificado que Docnet.Core/PDFium, SQLite y .NET son todas permisivas y compatibles entre sí. Ver `LICENSE`.
+- "Personalización visual liviana": decidida en contra el 2026-09-13 — Archivero no tiene ninguna opción de personalización. Ícono único y fijo (el mismo diseño ya usado en la bandeja del sistema). Ver Boundaries de `SPEC.md`.
 
 ## Riesgos o cosas frágiles a tener en cuenta
 - El reconocimiento automático de Emisor/Tipo depende de patrones de coordenadas marcados a mano — un cambio de diseño en un documento de un proveedor puede romper un patrón existente (ya contemplado en REQ-002/REQ-003, pero es el punto más frágil del sistema).
