@@ -12,11 +12,11 @@
   - Creada la carpeta `preguntas/` vacía.
 
 ## Siguiente paso
-- REQ-001, REQ-003, REQ-002, REQ-004: **mergeados**. ✅ Todos probados por Javier y funcionando (varios bugs reales encontrados y arreglados en el camino — ver secciones de cada uno más abajo: coordenadas corridas, coincidencia contra el nombre en vez del texto marcado, parser de fechas que no soportaba varios formatos comunes).
-- REQ-005 (carcasa — bandeja del sistema, minimizar en vez de cerrar, instancia única, ícono que avisa pendientes) en la rama `feature/req-005-carcasa-bandeja`, PR abierto: https://github.com/jivhdev/Archivero/pull/5. **Es el último requerimiento funcional de SPEC.md.**
-  - Verificado desde la sesión de IA: instancia única (abrir el ejecutable dos veces solo deja una corriendo), build y arranque sin errores.
-  - **Falta que Javier pruebe a mano** todo lo visual (parpadeo del ícono, minimizar con la X, volver desde la bandeja, "Salir") — no se puede hacer clic en una ventana real desde esta sesión. Pasos exactos en el PR.
-- Cuando Javier confirme REQ-005, **los 5 requerimientos funcionales de SPEC.md quedan completos**. Después de eso: revisar juntos qué falta para un hito de empaquetado (ejecutable autocontenido) y las decisiones abiertas (licencia, nombres de interfaz) — ver sección de abajo.
+- **Los 5 requerimientos funcionales de SPEC.md (REQ-001 a REQ-005) están mergeados a `main` y probados por Javier.** Varios bugs reales encontrados y arreglados en el camino (ver secciones de cada uno más abajo): coordenadas corridas, coincidencia contra el nombre en vez del texto efectivamente marcado, parser de fechas que no soportaba varios formatos comunes, pendientes que no se limpiaban solos si se sacaba el archivo de la carpeta a mano.
+- **Sin definir todavía**: qué sigue ahora que el alcance funcional de SPEC.md está cubierto. Candidatos, a decidir con Javier:
+  - Empaquetar como ejecutable autocontenido (primer "hito real" según `AGENTS.md` — hasta ahora solo se corrió con `dotnet build`/`dotnet run`, nunca se generó el `.exe` autocontenido final).
+  - Resolver las "Open issues" de `SPEC.md`: elección final de licencia (ya se sabe que la dependencia de PDFium es Docnet.Core, MIT), nombres finales de interfaz, alcance de "personalización visual liviana".
+  - Una ronda de uso real más prolongado (varios documentos reales, varios proveedores) para encontrar más casos límite antes de considerar esto "terminado".
 
 ### REQ-001 — qué se construyó
 - Proyecto WPF (.NET 8) creado en `src/Archivero`, solución `Archivero.sln`.
@@ -78,7 +78,14 @@ También se agregó la variante de patrón de carpeta `yyyy\yyyyMM` (año en una
 - **Ícono de bandeja** (`Servicios/TrayIconService.cs`, dibujado en código con `System.Drawing`, sin archivo `.ico`): parpadea azul↔naranja mientras haya algo en pendientes, sin popups ni sonidos; deja de parpadear cuando la lista queda vacía.
 - **Instancia única**: `Mutex` con nombre fijo en `App.xaml.cs`; si ya hay una instancia corriendo, la nueva apertura no crea nada — usa `FindWindow`/`SetForegroundWindow` (Win32, vía P/Invoke) para enfocar la ventana existente (aunque esté oculta en la bandeja) y se cierra sola. Verificado desde la sesión: abrir el ejecutable dos veces deja una sola instancia corriendo.
 - **Aviso si la carpeta observada desaparece**: se engancha al evento `Error` del `FileSystemWatcher` (se dispara si el directorio se borra/mueve) y avisa en vez de fallar en silencio.
-- **Falta que Javier pruebe a mano** lo visual (parpadeo real, minimizar/restaurar, "Salir") — no se puede interactuar con una ventana real desde la sesión de IA.
+- ✅ **Probado por Javier**: lo visual (parpadeo, minimizar/restaurar, "Salir") funciona.
+
+### REQ-005 — bug real: pendientes que no se limpiaban al sacar el archivo de la carpeta
+Javier sacó un archivo de la carpeta observada a mano y siguió apareciendo en "Pendientes por reconocer" — Archivero solo escuchaba cuando aparecía un archivo nuevo (`FileSystemWatcher.Created`), nunca cuando desaparecía uno. Se agregó:
+- En vivo: manejo de `Deleted`/`Renamed` del `FileSystemWatcher` para sacar el archivo de Pendientes (y cualquier Borrador huérfano) apenas desaparece.
+- Al arrancar: `ReconciliarPendientesConDisco` revisa cada pendiente guardado contra el disco, por si el archivo se sacó mientras Archivero no estaba corriendo (el watcher en vivo no se hubiera enterado).
+
+Probado a mano en los dos casos (borrar con la app corriendo, y con la app cerrada) — en ambos el pendiente fantasma desaparece solo. 54 tests en total (sin tests nuevos para esto — es comportamiento de integración con el sistema de archivos real, verificado a mano).
 
 ### Nota sobre la sincronización automática del vault
 Hay un proceso en background (mencionado en `AGENTS.md`) que hace commits automáticos ("Sync automatico: ...") a este repo con la identidad de Javier, incluso a mitad de una sesión de trabajo. No es un problema — solo hace que a veces aparezca un commit intermedio con código a medio terminar en el historial. Ya pasó una vez que agarró un archivo interno del harness (`.claude/scheduled_tasks.lock`), que se sacó y se agregó a `.gitignore`.
