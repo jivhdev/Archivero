@@ -15,6 +15,22 @@ public enum CampoMarca
     NombreArchivo
 }
 
+/// <summary>Por qué un archivo terminó en "pendientes por reconocer" — determina qué pantalla abrir al revisarlo.</summary>
+public enum MotivoPendiente
+{
+    /// <summary>No coincide con ninguna configuración: hace falta el asistente completo (REQ-003).</summary>
+    NuevoDocumento,
+
+    /// <summary>Coincidió con una configuración, pero un valor extraído no tiene forma válida.</summary>
+    ValorInvalido,
+
+    /// <summary>Coincidió con una configuración, pero ya existe un archivo con ese nombre en destino.</summary>
+    Duplicado,
+
+    /// <summary>Coincidió con una configuración, pero su carpeta de destino no está disponible ahora.</summary>
+    CarpetaNoDisponible
+}
+
 /// <summary>
 /// TextoReferencia es el texto que efectivamente se extrajo de esa coordenada en el momento
 /// de crear la marca (para Emisor/Tipo). La coincidencia automática (REQ-002) compara contra

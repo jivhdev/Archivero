@@ -636,36 +636,54 @@ public partial class IdentificarDocumentoWindow : Window
                 Patrones = []
             };
 
-            var rutaFinal = ClasificadorService.Clasificar(_rutaArchivo, configuracionParaClasificar, fecha, nombreExtraido);
-
-            if (_configuracionExistente is not null)
+            string rutaFinal;
+            try
             {
-                _configuraciones.AgregarPatronAConfiguracionExistente(_configuracionExistente.Id, marcas);
+                rutaFinal = ClasificadorService.Clasificar(_rutaArchivo, configuracionParaClasificar, fecha, nombreExtraido);
             }
-            else
+            catch (ArchivoDuplicadoException ex)
             {
-                _configuraciones.GuardarNueva(_emisor, _tipo, _carpetaDestino, _formato, _patronCarpeta, _renombrar, marcas);
+                // REQ-002: ofrecer Revisar / Reemplazar / Dejar pendiente / Guardar como
+                // excepcion, en vez de solo fallar.
+                var resolver = new ResolverDuplicadoWindow(_rutaArchivo, ex.RutaDestino) { Owner = this };
+                if (resolver.ShowDialog() != true)
+                {
+                    MostrarError("Documento dejado pendiente por nombre duplicado. Podés posponer o cancelar, o intentar de nuevo.");
+                    return;
+                }
+
+                rutaFinal = ex.RutaDestino;
             }
 
-            _pendientes.Quitar(_rutaArchivo);
-            _borradores.Eliminar(_rutaArchivo);
-            _draftYaResuelto = true;
-
-            System.Windows.MessageBox.Show(
-                this, $"Documento guardado en:\n{rutaFinal}", "Archivero",
-                MessageBoxButton.OK, MessageBoxImage.Information);
-
-            DialogResult = true;
-            Close();
-        }
-        catch (ArchivoDuplicadoException ex)
-        {
-            MostrarError($"{ex.Message} Por ahora Archivero no reemplaza duplicados automáticamente desde este asistente.");
+            GuardarConfiguracionYCerrar(marcas, rutaFinal);
         }
         catch (Exception ex)
         {
             MostrarError($"No se pudo guardar: {ex.Message}");
         }
+    }
+
+    private void GuardarConfiguracionYCerrar(List<Marca> marcas, string rutaFinal)
+    {
+        if (_configuracionExistente is not null)
+        {
+            _configuraciones.AgregarPatronAConfiguracionExistente(_configuracionExistente.Id, marcas);
+        }
+        else
+        {
+            _configuraciones.GuardarNueva(_emisor, _tipo, _carpetaDestino, _formato, _patronCarpeta, _renombrar, marcas);
+        }
+
+        _pendientes.Quitar(_rutaArchivo);
+        _borradores.Eliminar(_rutaArchivo);
+        _draftYaResuelto = true;
+
+        System.Windows.MessageBox.Show(
+            this, $"Documento guardado en:\n{rutaFinal}", "Archivero",
+            MessageBoxButton.OK, MessageBoxImage.Information);
+
+        DialogResult = true;
+        Close();
     }
 
     private void BtnPosponer_Click(object sender, RoutedEventArgs e)

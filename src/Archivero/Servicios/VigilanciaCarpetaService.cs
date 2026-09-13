@@ -126,7 +126,7 @@ public class VigilanciaCarpetaService : IDisposable
 
             if (coincidencia is null)
             {
-                AgregarAPendientes(rutaArchivo);
+                AgregarAPendientes(rutaArchivo, MotivoPendiente.NuevoDocumento);
                 return;
             }
 
@@ -139,12 +139,18 @@ public class VigilanciaCarpetaService : IDisposable
                     break;
 
                 case ResultadoGuardadoAutomatico.ValorInvalido:
-                    AgregarAPendientes(rutaArchivo);
+                    AgregarAPendientes(rutaArchivo, MotivoPendiente.ValorInvalido);
                     break;
 
                 case ResultadoGuardadoAutomatico.Duplicado:
+                    if (AgregarAPendientes(rutaArchivo, MotivoPendiente.Duplicado))
+                    {
+                        ArchivoRequiereAtencion?.Invoke(rutaArchivo, resultado.Detalle ?? resultado.Resultado.ToString());
+                    }
+                    break;
+
                 case ResultadoGuardadoAutomatico.CarpetaNoDisponible:
-                    if (AgregarAPendientes(rutaArchivo))
+                    if (AgregarAPendientes(rutaArchivo, MotivoPendiente.CarpetaNoDisponible))
                     {
                         ArchivoRequiereAtencion?.Invoke(rutaArchivo, resultado.Detalle ?? resultado.Resultado.ToString());
                     }
@@ -158,9 +164,9 @@ public class VigilanciaCarpetaService : IDisposable
         }
     }
 
-    private bool AgregarAPendientes(string rutaArchivo)
+    private bool AgregarAPendientes(string rutaArchivo, MotivoPendiente motivo)
     {
-        var esNuevo = _pendientes.Agregar(rutaArchivo);
+        var esNuevo = _pendientes.Agregar(rutaArchivo, motivo);
         if (esNuevo)
         {
             ArchivoPendienteDetectado?.Invoke(rutaArchivo);
