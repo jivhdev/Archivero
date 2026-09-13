@@ -13,10 +13,12 @@
 
 ## Siguiente paso
 - **Los 5 requerimientos funcionales de SPEC.md (REQ-001 a REQ-005) están mergeados a `main` y probados por Javier.** Varios bugs reales encontrados y arreglados en el camino (ver secciones de cada uno más abajo): coordenadas corridas, coincidencia contra el nombre en vez del texto efectivamente marcado, parser de fechas que no soportaba varios formatos comunes, pendientes que no se limpiaban solos si se sacaba el archivo de la carpeta a mano.
-- **Sin definir todavía**: qué sigue ahora que el alcance funcional de SPEC.md está cubierto. Candidatos, a decidir con Javier:
-  - Empaquetar como ejecutable autocontenido (primer "hito real" según `AGENTS.md` — hasta ahora solo se corrió con `dotnet build`/`dotnet run`, nunca se generó el `.exe` autocontenido final).
-  - Resolver las "Open issues" de `SPEC.md`: elección final de licencia (ya se sabe que la dependencia de PDFium es Docnet.Core, MIT), nombres finales de interfaz, alcance de "personalización visual liviana".
-  - Una ronda de uso real más prolongado (varios documentos reales, varios proveedores) para encontrar más casos límite antes de considerar esto "terminado".
+- **SPEC.md se actualizó desde el vault (2026-09-13)**: licencia MIT confirmada, y Boundaries ahora dice explícitamente que Archivero no tiene ninguna opción de personalización visual — ícono único y fijo.
+- Javier pidió 3 tareas puntuales en la misma sesión, las 3 con PR abierto, **todavía sin probar/mergear**:
+  - PR #6 — completar REQ-002: las 4 opciones de nombre duplicado (Revisar/Reemplazar/Dejar pendiente/Excepción).
+  - PR #7 — empaquetado: primer `.exe` autocontenido real, generado y probado desde la sesión (no se puede subir al repo, pesa ~160MB — ver `GIT.md`).
+  - PR #8 — LICENSE (MIT) + ícono único y fijo de la app (mismo diseño que el ícono de bandeja).
+- Después de que Javier confirme esas 3: no queda nada pendiente conocido del alcance de SPEC.md — el siguiente paso sería una ronda de uso real más prolongado, o cerrar los "Open issues" que quedan (nombres finales de interfaz).
 
 ### REQ-001 — qué se construyó
 - Proyecto WPF (.NET 8) creado en `src/Archivero`, solución `Archivero.sln`.
@@ -87,8 +89,17 @@ Javier sacó un archivo de la carpeta observada a mano y siguió apareciendo en 
 
 Probado a mano en los dos casos (borrar con la app corriendo, y con la app cerrada) — en ambos el pendiente fantasma desaparece solo. 54 tests en total (sin tests nuevos para esto — es comportamiento de integración con el sistema de archivos real, verificado a mano).
 
+### REQ-002 — completado: las 4 opciones de nombre duplicado
+`Vistas/ResolverDuplicadoWindow`: Revisar lado a lado (renderiza la primera página de ambos documentos), Reemplazar, Dejar pendiente, Guardar en otra ubicación como excepción — en el orden que pide SPEC.md. Se ofrece tanto al reabrir un pendiente marcado como "Duplicado" (nuevo campo `Pendientes.Motivo`, para saber qué pantalla abrir sin tener que re-identificar) como desde el propio asistente si el guardado choca con un duplicado ahí mismo. `ClasificadorService.CalcularRutaDestino` separa el cálculo de la ruta final (sin tocar el disco) para poder recalcularla al reabrir un pendiente. 63 tests en total.
+
+### Empaquetado — primer ejecutable autocontenido real
+`dotnet publish` con `--self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true` (el último flag hace falta para que la librería nativa de PDFium quede embebida en el único .exe). Comando completo documentado en `GIT.md`. Resultado: un `.exe` de ~160MB que corre sin tener .NET instalado — probado a mano desde la sesión. No se tocó `Archivero.csproj` con `RuntimeIdentifier`/`SelfContained` fijos, para no ensuciar el ciclo normal de `dotnet build`/`dotnet run` durante el desarrollo. El `.exe` nunca se sube al repo (supera el límite de tamaño de archivo de GitHub) — `publish/` está en `.gitignore`.
+
+### LICENSE + ícono único y fijo
+LICENSE (MIT, Javier Valdebenito, 2026). Ícono (`src/Archivero/Recursos/icono.ico`, varias resoluciones) con el mismo diseño que ya usaba el ícono de bandeja en su estado normal (círculo azul, "A" blanca — `Servicios/TrayIconService.cs`), aplicado como ícono del `.exe` (`<ApplicationIcon>`) y de todas las ventanas (`Style` de `Window` en `App.xaml`). Verificado extrayendo el ícono del `.exe` compilado y viéndolo.
+
 ### Nota sobre la sincronización automática del vault
-Hay un proceso en background (mencionado en `AGENTS.md`) que hace commits automáticos ("Sync automatico: ...") a este repo con la identidad de Javier, incluso a mitad de una sesión de trabajo. No es un problema — solo hace que a veces aparezca un commit intermedio con código a medio terminar en el historial. Ya pasó una vez que agarró un archivo interno del harness (`.claude/scheduled_tasks.lock`), que se sacó y se agregó a `.gitignore`.
+Hay un proceso en background (mencionado en `AGENTS.md`) que hace commits automáticos ("Sync automatico: ...") a este repo con la identidad de Javier, incluso a mitad de una sesión de trabajo. La mayoría de las veces es inofensivo (solo hace que aparezca un commit intermedio con código a medio terminar en el historial), pero **una vez alcanzó a comitear localmente el ejecutable de 161MB de `publish/`** en una rama que todavía no tenía la regla de `.gitignore` que lo excluye (se creó antes de mergear la rama de empaquetado). Se detectó y se deshizo (`git reset`) antes de pushear — nunca llegó a GitHub, pero pudo haber roto el push (GitHub rechaza archivos de más de 100MB). Ver memoria `project-vault-auto-sync`: antes de pushear una rama nueva, conviene revisar si hay un commit "Sync automatico" con algo grande adentro.
 
 ## Decisiones abiertas / dudas para el usuario
 Ver la sección "Open issues" de `SPEC.md`:
