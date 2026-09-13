@@ -22,7 +22,7 @@
         <TextBlock Grid.Row="0" FontSize="16" FontWeight="Bold"
                    Text="Bienvenido a Archivero"/>
         <TextBlock Grid.Row="1" Margin="0,4,0,20" TextWrapping="Wrap"
-                   Text="Antes de empezar, elegí dónde va a vivir la carpeta que Archivero va a observar."/>
+                   Text="Antes de empezar, hay que elegir dónde va a vivir la carpeta que Archivero va a observar."/>
 
         <TextBlock Grid.Row="2" Text="Nombre de la carpeta:"/>
         <TextBox Grid.Row="3" Name="TxtNombre" Margin="0,4,0,16"/>
