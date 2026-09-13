@@ -7,6 +7,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{C8F6ABA6-BBF
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Archivero", "src\Archivero\Archivero.csproj", "{9E5B2D10-4BAD-467D-8E1C-2360E2CC70BF}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Archivero.Tests", "src\Archivero.Tests\Archivero.Tests.csproj", "{94628ACB-D48B-48C8-9066-9E70886AFC06}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -20,8 +22,13 @@ Global
 		{9E5B2D10-4BAD-467D-8E1C-2360E2CC70BF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9E5B2D10-4BAD-467D-8E1C-2360E2CC70BF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9E5B2D10-4BAD-467D-8E1C-2360E2CC70BF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{94628ACB-D48B-48C8-9066-9E70886AFC06}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{94628ACB-D48B-48C8-9066-9E70886AFC06}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{94628ACB-D48B-48C8-9066-9E70886AFC06}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{94628ACB-D48B-48C8-9066-9E70886AFC06}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{9E5B2D10-4BAD-467D-8E1C-2360E2CC70BF} = {C8F6ABA6-BBFE-46CD-8E00-32339FD0B844}
+		{94628ACB-D48B-48C8-9066-9E70886AFC06} = {C8F6ABA6-BBFE-46CD-8E00-32339FD0B844}
 	EndGlobalSection
 EndGlobal

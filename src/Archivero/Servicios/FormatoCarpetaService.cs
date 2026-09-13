@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.IO;
 using Archivero.Datos;
 
 namespace Archivero.Servicios;
@@ -58,10 +59,22 @@ public static class FormatoCarpetaService
     public static bool CoincideConPatron(string? nombre, string patron) =>
         nombre is not null && DateTime.TryParseExact(nombre, patron, Cultura, DateTimeStyles.None, out _);
 
-    public static string ConstruirSubcarpeta(FormatoCarpeta formato, string? patron, DateTime fecha) =>
-        formato switch
+    public static string ConstruirSubcarpeta(FormatoCarpeta formato, string? patron, DateTime fecha)
+    {
+        if (formato == FormatoCarpeta.Directo)
         {
-            FormatoCarpeta.Directo => string.Empty,
-            _ => fecha.ToString(patron ?? throw new InvalidOperationException("Falta el patrón de carpeta."), Cultura)
-        };
+            return string.Empty;
+        }
+
+        if (patron is null)
+        {
+            throw new InvalidOperationException("Falta el patrón de carpeta.");
+        }
+
+        // Cada nivel de carpeta se formatea por separado y se combina con Path.Combine:
+        // un "\" dentro de un formato de DateTime.ToString se interpreta como caracter de
+        // escape, no como separador de ruta, asi que no se puede pasar "yyyy\MM" de una.
+        var partesFormateadas = patron.Split('\\').Select(parte => fecha.ToString(parte, Cultura));
+        return Path.Combine(partesFormateadas.ToArray());
+    }
 }

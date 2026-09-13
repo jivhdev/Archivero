@@ -1,3 +1,5 @@
+using System.IO;
+
 namespace Archivero.Datos;
 
 public record ArchivoPendiente(int Id, string RutaArchivo, DateTime FechaDetectado)

@@ -5,7 +5,7 @@ namespace Archivero.Datos;
 
 public static class BaseDeDatos
 {
-    public static string RutaArchivo { get; } = Path.Combine(
+    public static string RutaArchivo { get; set; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "Archivero",
         "archivero.db");
