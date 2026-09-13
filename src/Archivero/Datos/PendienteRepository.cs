@@ -24,13 +24,13 @@ public class PendienteRepository
         return comando.ExecuteNonQuery() > 0;
     }
 
-    public void Quitar(string rutaArchivo)
+    public bool Quitar(string rutaArchivo)
     {
         using var conexion = BaseDeDatos.CrearConexion();
         using var comando = conexion.CreateCommand();
         comando.CommandText = "DELETE FROM Pendientes WHERE RutaArchivo = $ruta;";
         comando.Parameters.AddWithValue("$ruta", rutaArchivo);
-        comando.ExecuteNonQuery();
+        return comando.ExecuteNonQuery() > 0;
     }
 
     public List<ArchivoPendiente> ObtenerTodos()
