@@ -27,6 +27,7 @@ public partial class IdentificarDocumentoWindow : Window
     private FormatoCarpeta _formato;
     private string? _patronCarpeta;
     private bool _renombrar;
+    private ConfiguracionDocumento? _configuracionExistente;
 
     public IdentificarDocumentoWindow(string rutaArchivo)
     {
@@ -55,16 +56,24 @@ public partial class IdentificarDocumentoWindow : Window
 
         TxtError.Visibility = Visibility.Collapsed;
 
+        var vinculando = _configuracionExistente is not null;
+
         (TxtTituloPaso.Text, TxtInstruccionPaso.Text) = nuevoPaso switch
         {
             Paso.EmisorTipo => ("Paso 1 de 5 — Emisor y Tipo",
                 "Marcar sobre el PDF dónde aparecen el Emisor y el Tipo de documento, y escribirlos (o elegir uno ya conocido)."),
             Paso.Carpeta => ("Paso 2 de 5 — Carpeta de destino",
-                "Elegir en qué carpeta se van a guardar los documentos de este Emisor y Tipo."),
+                vinculando
+                    ? "Esta carpeta ya está definida por la configuración existente a la que se va a vincular este documento."
+                    : "Elegir en qué carpeta se van a guardar los documentos de este Emisor y Tipo."),
             Paso.Formato => ("Paso 3 de 5 — Formato de subcarpetas",
-                "Confirmar o corregir cómo se organizan las subcarpetas de fecha."),
+                vinculando
+                    ? "El formato ya está definido por la configuración existente. Si corresponde, marcar la fecha en este documento."
+                    : "Confirmar o corregir cómo se organizan las subcarpetas de fecha."),
             Paso.NombreArchivo => ("Paso 4 de 5 — Nombre de archivo",
-                "Elegir cómo se va a llamar el archivo guardado."),
+                vinculando
+                    ? "La regla de nombre ya está definida por la configuración existente. Si corresponde, marcar el campo en este documento."
+                    : "Elegir cómo se va a llamar el archivo guardado."),
             Paso.Confirmar => ("Paso 5 de 5 — Confirmar", "Revisar los datos antes de guardar."),
             _ => (string.Empty, string.Empty)
         };
@@ -215,6 +224,32 @@ public partial class IdentificarDocumentoWindow : Window
         PanelMarcarNombre.Visibility = RbExtraerNombre.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
     }
 
+    private void AplicarConfiguracionExistente(ConfiguracionDocumento existente)
+    {
+        _configuracionExistente = existente;
+        _carpetaDestino = existente.CarpetaDestino;
+        _formato = existente.FormatoCarpeta;
+        _patronCarpeta = existente.PatronCarpeta;
+        _renombrar = existente.Renombrar;
+
+        TxtCarpetaDestino.Text = _carpetaDestino;
+        BtnElegirCarpeta.IsEnabled = false;
+
+        RbDirecto.IsChecked = _formato == FormatoCarpeta.Directo;
+        RbAnio.IsChecked = _formato == FormatoCarpeta.Anio;
+        RbAnioMes.IsChecked = _formato == FormatoCarpeta.AnioMes;
+        RbDirecto.IsEnabled = RbAnio.IsEnabled = RbAnioMes.IsEnabled = false;
+        if (_patronCarpeta is not null)
+        {
+            CmbPatronCarpeta.Text = _patronCarpeta;
+        }
+        CmbPatronCarpeta.IsEnabled = false;
+
+        RbMantenerNombre.IsChecked = !_renombrar;
+        RbExtraerNombre.IsChecked = _renombrar;
+        RbMantenerNombre.IsEnabled = RbExtraerNombre.IsEnabled = false;
+    }
+
     private void PrepararPasoFormato(DeteccionFormatoCarpeta deteccion)
     {
         RbDirecto.IsChecked = deteccion.Formato == FormatoCarpeta.Directo;
@@ -238,7 +273,12 @@ public partial class IdentificarDocumentoWindow : Window
         };
         var nombreTexto = _renombrar ? "se extrae del campo marcado en el PDF" : "se mantiene el nombre original";
 
+        var encabezado = _configuracionExistente is not null
+            ? "Este documento se va a vincular a la configuración existente (se agrega como patrón de reconocimiento adicional):\n\n"
+            : string.Empty;
+
         TxtResumen.Text =
+            encabezado +
             $"Emisor: {_emisor}\n" +
             $"Tipo: {_tipo}\n" +
             $"Carpeta destino: {_carpetaDestino}\n" +
@@ -265,63 +305,92 @@ public partial class IdentificarDocumentoWindow : Window
                     return;
                 }
 
+                var configuracionExistente = _configuraciones.BuscarPorEmisorYTipo(_emisor, _tipo);
+                if (configuracionExistente is not null)
+                {
+                    var vincular = System.Windows.MessageBox.Show(
+                        this,
+                        $"Ya existe una configuración guardada para \"{_emisor}\" / \"{_tipo}\".\n\n" +
+                        "¿Vincular este documento a esa configuración como un patrón de reconocimiento adicional? " +
+                        "(útil si el proveedor cambió el diseño del documento). Se va a usar la misma carpeta de destino, " +
+                        "formato y regla de nombre de archivo ya definidos.",
+                        "Archivero", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+                    if (vincular != MessageBoxResult.Yes)
+                    {
+                        MostrarError("Corregir el Emisor o el Tipo si no correspondía, o cancelar la identificación.");
+                        return;
+                    }
+
+                    AplicarConfiguracionExistente(configuracionExistente);
+                }
+                else
+                {
+                    _configuracionExistente = null;
+                }
+
                 MostrarPaso(Paso.Carpeta);
                 break;
 
             case Paso.Carpeta:
-                if (string.IsNullOrWhiteSpace(TxtCarpetaDestino.Text))
+                if (_configuracionExistente is null)
                 {
-                    MostrarError("Elegir una carpeta de destino.");
-                    return;
+                    if (string.IsNullOrWhiteSpace(TxtCarpetaDestino.Text))
+                    {
+                        MostrarError("Elegir una carpeta de destino.");
+                        return;
+                    }
+
+                    _carpetaDestino = TxtCarpetaDestino.Text;
+                    PrepararPasoFormato(FormatoCarpetaService.Detectar(_carpetaDestino));
                 }
 
-                _carpetaDestino = TxtCarpetaDestino.Text;
-                PrepararPasoFormato(FormatoCarpetaService.Detectar(_carpetaDestino));
                 MostrarPaso(Paso.Formato);
                 break;
 
             case Paso.Formato:
-                if (RbDirecto.IsChecked != true && RbAnio.IsChecked != true && RbAnioMes.IsChecked != true)
+                if (_configuracionExistente is null)
                 {
-                    MostrarError("Elegir un formato de carpeta.");
-                    return;
-                }
+                    if (RbDirecto.IsChecked != true && RbAnio.IsChecked != true && RbAnioMes.IsChecked != true)
+                    {
+                        MostrarError("Elegir un formato de carpeta.");
+                        return;
+                    }
 
-                _formato = RbDirecto.IsChecked == true
-                    ? FormatoCarpeta.Directo
-                    : RbAnio.IsChecked == true ? FormatoCarpeta.Anio : FormatoCarpeta.AnioMes;
+                    _formato = RbDirecto.IsChecked == true
+                        ? FormatoCarpeta.Directo
+                        : RbAnio.IsChecked == true ? FormatoCarpeta.Anio : FormatoCarpeta.AnioMes;
 
-                if (_formato == FormatoCarpeta.Directo)
-                {
-                    _patronCarpeta = null;
-                }
-                else
-                {
-                    _patronCarpeta = CmbPatronCarpeta.Text.Trim();
-                    if (string.IsNullOrWhiteSpace(_patronCarpeta))
+                    _patronCarpeta = _formato == FormatoCarpeta.Directo ? null : CmbPatronCarpeta.Text.Trim();
+
+                    if (_formato != FormatoCarpeta.Directo && string.IsNullOrWhiteSpace(_patronCarpeta))
                     {
                         MostrarError("Definir el patrón de la subcarpeta (por ejemplo: yyyy).");
                         return;
                     }
+                }
 
-                    if (!_marcas.ContainsKey(CampoMarca.Fecha))
-                    {
-                        MostrarError("Marcar dónde aparece la fecha en el PDF.");
-                        return;
-                    }
+                if (_formato != FormatoCarpeta.Directo && !_marcas.ContainsKey(CampoMarca.Fecha))
+                {
+                    MostrarError("Marcar dónde aparece la fecha en el PDF.");
+                    return;
                 }
 
                 MostrarPaso(Paso.NombreArchivo);
                 break;
 
             case Paso.NombreArchivo:
-                if (RbMantenerNombre.IsChecked != true && RbExtraerNombre.IsChecked != true)
+                if (_configuracionExistente is null)
                 {
-                    MostrarError("Elegir cómo se va a llamar el archivo.");
-                    return;
+                    if (RbMantenerNombre.IsChecked != true && RbExtraerNombre.IsChecked != true)
+                    {
+                        MostrarError("Elegir cómo se va a llamar el archivo.");
+                        return;
+                    }
+
+                    _renombrar = RbExtraerNombre.IsChecked == true;
                 }
 
-                _renombrar = RbExtraerNombre.IsChecked == true;
                 if (_renombrar && !_marcas.ContainsKey(CampoMarca.NombreArchivo))
                 {
                     MostrarError("Marcar en el PDF el campo que se va a usar como nombre de archivo.");
@@ -378,7 +447,7 @@ public partial class IdentificarDocumentoWindow : Window
             // (fecha invalida, carpeta no disponible, nombre duplicado), no debe quedar una
             // configuracion a medias que despues choque con la restriccion de Emisor+Tipo
             // unico al reintentar.
-            var configuracionProvisoria = new ConfiguracionDocumento
+            var configuracionParaClasificar = _configuracionExistente ?? new ConfiguracionDocumento
             {
                 Emisor = _emisor,
                 Tipo = _tipo,
@@ -389,9 +458,17 @@ public partial class IdentificarDocumentoWindow : Window
                 Marcas = marcas
             };
 
-            var rutaFinal = ClasificadorService.Clasificar(_rutaArchivo, configuracionProvisoria, fecha, nombreExtraido);
+            var rutaFinal = ClasificadorService.Clasificar(_rutaArchivo, configuracionParaClasificar, fecha, nombreExtraido);
 
-            _configuraciones.GuardarNueva(_emisor, _tipo, _carpetaDestino, _formato, _patronCarpeta, _renombrar, marcas);
+            if (_configuracionExistente is not null)
+            {
+                _configuraciones.AgregarPatronAConfiguracionExistente(_configuracionExistente.Id, marcas);
+            }
+            else
+            {
+                _configuraciones.GuardarNueva(_emisor, _tipo, _carpetaDestino, _formato, _patronCarpeta, _renombrar, marcas);
+            }
+
             _pendientes.Quitar(_rutaArchivo);
 
             System.Windows.MessageBox.Show(
