@@ -3,22 +3,17 @@
 > Se actualiza al final de cada sesión. Es lo tercero que hay que leer (después de AGENTS.md y SPEC.md) para saber dónde quedamos.
 
 ## Última sesión
-- Fecha: 2026-09-12
-- Qué se hizo: setup de primera sesión completo según `LEEME.md`:
-  - `git init` + primer commit de la semilla.
-  - Repo nuevo en GitHub: https://github.com/jivhdev/Archivero (privado).
-  - Nota: ya existía un repo `jivhdev/archivero` distinto (versión en Python, con función de copiar datos a un ERP externo — fuera del `SPEC.md` actual). Se renombró y archivó (solo lectura) como `jivhdev/archivero-viejo-python` para no perder ese trabajo previo. Decisión tomada por Javier en el chat, no es un Caso-N.
-  - Registrado en `C:\MQD\Scripts\otros-repos.txt` y actualizada la fila de Archivero en `C:\MQD\01-Proyectos\Registro-de-Proyectos.md`.
-  - Creada la carpeta `preguntas/` vacía.
+- Fecha: 2026-09-13
+- Qué se hizo:
+  - Se re-chequeó `SPEC.md` local contra `C:\MQD\01-Proyectos\Archivero\semilla-archivero\SPEC.md` a pedido de Javier — **sin diferencias** esta vez, la copia local ya estaba al día.
+  - Se mergearon a `main` los 3 PRs que habían quedado pendientes de la sesión anterior (PR #6 REQ-002 duplicados, PR #7 empaquetado, PR #8 LICENSE+ícono), sin conflictos. Se verificó que el resultado combinado compila y pasa los 63 tests automáticos.
+  - Se corrigió la sección "Decisiones abiertas" de este archivo (PR #10), que todavía daba como pendientes la licencia y la personalización visual, ya resueltas.
+  - Se creó `Distribucion/` en la raíz del repo (PR #11) con el `.exe` autocontenido regenerado y `Distribucion/ESTADO-DISTRIBUCION.md` (versionado) documentando el piloto — el binario mismo queda excluido del repo vía `.gitignore`, con la misma regla que ya protege a `publish/`.
 
 ## Siguiente paso
-- **Los 5 requerimientos funcionales de SPEC.md (REQ-001 a REQ-005) están mergeados a `main` y probados por Javier.** Varios bugs reales encontrados y arreglados en el camino (ver secciones de cada uno más abajo): coordenadas corridas, coincidencia contra el nombre en vez del texto efectivamente marcado, parser de fechas que no soportaba varios formatos comunes, pendientes que no se limpiaban solos si se sacaba el archivo de la carpeta a mano.
-- **SPEC.md se actualizó desde el vault (2026-09-13)**: licencia MIT confirmada, y Boundaries ahora dice explícitamente que Archivero no tiene ninguna opción de personalización visual — ícono único y fijo.
-- Javier pidió 3 tareas puntuales en la misma sesión, las 3 con PR abierto, **todavía sin probar/mergear**:
-  - PR #6 — completar REQ-002: las 4 opciones de nombre duplicado (Revisar/Reemplazar/Dejar pendiente/Excepción).
-  - PR #7 — empaquetado: primer `.exe` autocontenido real, generado y probado desde la sesión (no se puede subir al repo, pesa ~160MB — ver `GIT.md`).
-  - PR #8 — LICENSE (MIT) + ícono único y fijo de la app (mismo diseño que el ícono de bandeja).
-- Después de que Javier confirme esas 3: no queda nada pendiente conocido del alcance de SPEC.md — el siguiente paso sería una ronda de uso real más prolongado, o cerrar los "Open issues" que quedan (nombres finales de interfaz).
+- **Los 5 requerimientos funcionales de SPEC.md (REQ-001 a REQ-005) están completos, mergeados a `main`, y probados por Javier**, incluida la resolución de duplicados de REQ-002. Varios bugs reales encontrados y arreglados en el camino (ver secciones de cada uno más abajo).
+- Empaquetado, licencia, ícono, y la carpeta `Distribucion/` para el piloto también están en `main`.
+- No queda nada pendiente conocido del alcance de `SPEC.md`. El siguiente paso es la ronda de uso real en piloto (`Distribucion/ESTADO-DISTRIBUCION.md` dice "En piloto desde 2026-09-13 — pendiente de revisión") y, más adelante, cerrar los "Open issues" que quedan (nombres finales de interfaz).
 
 ### REQ-001 — qué se construyó
 - Proyecto WPF (.NET 8) creado en `src/Archivero`, solución `Archivero.sln`.
