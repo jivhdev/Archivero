@@ -41,3 +41,18 @@ gh pr create --fill
 git status
 git diff
 ```
+
+## Generar el ejecutable autocontenido (empaquetado)
+Para uso diario durante el desarrollo, correr directo con `dotnet run` (mucho más rápido).
+Empaquetar solo en hitos reales — el resultado es un único `.exe` de Windows de ~160 MB
+(incluye el runtime de .NET y la librería nativa de PDFium: no necesita tener .NET instalado
+para correr) que **nunca se sube al repo** (supera el límite de tamaño de archivo de GitHub;
+ver `.gitignore`, carpeta `publish/`).
+
+```bash
+dotnet publish src/Archivero/Archivero.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
+```
+
+El `.exe` queda en `publish/Archivero.exe`. Para distribuirlo, copiar ese archivo (y listo,
+no hace falta nada más de esa carpeta salvo el `LICENSE` de PDFium que se genera al lado,
+requerido por su licencia de redistribución).
