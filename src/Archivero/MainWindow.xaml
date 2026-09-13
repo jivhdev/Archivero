@@ -1,0 +1,14 @@
+<Window x:Class="Archivero.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Archivero" Height="300" Width="520"
+        WindowStartupLocation="CenterScreen">
+    <Grid Margin="20">
+        <StackPanel VerticalAlignment="Center">
+            <TextBlock FontSize="16" FontWeight="Bold" Text="Archivero" Margin="0,0,0,12"/>
+            <TextBlock Name="TxtCarpetaObservada" TextWrapping="Wrap"/>
+            <TextBlock Margin="0,16,0,0" Foreground="Gray" TextWrapping="Wrap"
+                       Text="La ventana principal completa (pendientes por reconocer, administrar clasificaciones) es el próximo requerimiento — todavía no está construida."/>
+        </StackPanel>
+    </Grid>
+</Window>
