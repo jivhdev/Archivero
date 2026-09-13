@@ -17,7 +17,12 @@ public class ArchivoDuplicadoException : Exception
 
 public static class ClasificadorService
 {
-    public static string Clasificar(
+    /// <summary>
+    /// Calcula dónde iría el archivo (carpeta de fecha + nombre según la configuración), sin
+    /// tocar el disco. Se usa tanto para clasificar como para saber, ante un duplicado, qué
+    /// ruta exacta está en conflicto (REQ-002).
+    /// </summary>
+    public static string CalcularRutaDestino(
         string rutaArchivoOrigen,
         ConfiguracionDocumento configuracion,
         DateTime? fechaExtraida,
@@ -30,13 +35,21 @@ public static class ClasificadorService
             ? configuracion.CarpetaDestino
             : Path.Combine(configuracion.CarpetaDestino, subcarpeta);
 
-        Directory.CreateDirectory(carpetaFinal);
-
         var nombreArchivo = configuracion.Renombrar && !string.IsNullOrWhiteSpace(nombreExtraido)
             ? $"{nombreExtraido}{Path.GetExtension(rutaArchivoOrigen)}"
             : Path.GetFileName(rutaArchivoOrigen);
 
-        var rutaDestino = Path.Combine(carpetaFinal, nombreArchivo);
+        return Path.Combine(carpetaFinal, nombreArchivo);
+    }
+
+    public static string Clasificar(
+        string rutaArchivoOrigen,
+        ConfiguracionDocumento configuracion,
+        DateTime? fechaExtraida,
+        string? nombreExtraido)
+    {
+        var rutaDestino = CalcularRutaDestino(rutaArchivoOrigen, configuracion, fechaExtraida, nombreExtraido);
+        Directory.CreateDirectory(Path.GetDirectoryName(rutaDestino)!);
 
         if (File.Exists(rutaDestino))
         {
@@ -45,6 +58,26 @@ public static class ClasificadorService
 
         CopiarVerificarBorrar(rutaArchivoOrigen, rutaDestino);
         return rutaDestino;
+    }
+
+    /// <summary>Resolución de duplicado (REQ-002), opción "Reemplazar": borra lo que había y guarda lo nuevo.</summary>
+    public static void ReemplazarYClasificar(string rutaArchivoOrigen, string rutaDestino)
+    {
+        File.Delete(rutaDestino);
+        CopiarVerificarBorrar(rutaArchivoOrigen, rutaDestino);
+    }
+
+    /// <summary>Resolución de duplicado (REQ-002), opción "Guardar en otra ubicación como excepción".</summary>
+    public static void GuardarComoExcepcion(string rutaArchivoOrigen, string rutaDestino)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(rutaDestino)!);
+
+        if (File.Exists(rutaDestino))
+        {
+            throw new ArchivoDuplicadoException(rutaDestino);
+        }
+
+        CopiarVerificarBorrar(rutaArchivoOrigen, rutaDestino);
     }
 
     private static void CopiarVerificarBorrar(string origen, string destino)

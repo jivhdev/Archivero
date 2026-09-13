@@ -11,6 +11,7 @@ namespace Archivero;
 public partial class MainWindow : Window
 {
     private readonly PendienteRepository _pendientes = new();
+    private readonly ConfiguracionDocumentoRepository _configuraciones = new();
     private readonly VigilanciaCarpetaService _vigilancia;
     private readonly TrayIconService _bandeja = new();
     private bool _permitirCierre;
@@ -90,10 +91,53 @@ public partial class MainWindow : Window
             return;
         }
 
-        var asistente = new IdentificarDocumentoWindow(pendiente.RutaArchivo) { Owner = this };
-        asistente.ShowDialog();
+        if (pendiente.Motivo == MotivoPendiente.Duplicado)
+        {
+            AbrirResolucionDeDuplicado(pendiente.RutaArchivo);
+        }
+        else
+        {
+            var asistente = new IdentificarDocumentoWindow(pendiente.RutaArchivo) { Owner = this };
+            asistente.ShowDialog();
+        }
 
         CargarPendientes();
+    }
+
+    private void AbrirResolucionDeDuplicado(string rutaArchivo)
+    {
+        if (!File.Exists(rutaArchivo))
+        {
+            return;
+        }
+
+        // Se recalcula todo en el momento (coincidencia + campos extraidos) en vez de guardarlo
+        // en la base: es el mismo documento y la misma configuracion, asi que da lo mismo, y
+        // evita duplicar el estado en Pendientes.
+        var configuraciones = _configuraciones.ObtenerTodasConPatrones();
+        var coincidencia = CoincidenciaAutomaticaService.BuscarConfiguracionQueCoincide(rutaArchivo, configuraciones);
+        if (coincidencia is null)
+        {
+            // Ya no coincide con ninguna configuracion (por ejemplo, se borro) -> tratarlo
+            // como documento nuevo en vez de romper.
+            var asistente = new IdentificarDocumentoWindow(rutaArchivo) { Owner = this };
+            asistente.ShowDialog();
+            return;
+        }
+
+        var (campos, error) = GuardadoAutomaticoService.ExtraerCamposParaClasificar(rutaArchivo, coincidencia);
+        if (campos is null)
+        {
+            System.Windows.MessageBox.Show(this,
+                $"No se pudo volver a leer los datos de este documento ({error}). Probá abrirlo desde \"Administrar clasificaciones\" para revisar el patrón.",
+                "Archivero", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var rutaDestinoConflicto = ClasificadorService.CalcularRutaDestino(rutaArchivo, coincidencia, campos.Fecha, campos.NombreExtraido);
+
+        var resolver = new ResolverDuplicadoWindow(rutaArchivo, rutaDestinoConflicto) { Owner = this };
+        resolver.ShowDialog();
     }
 
     private void BtnAdministrarClasificaciones_Click(object sender, RoutedEventArgs e)

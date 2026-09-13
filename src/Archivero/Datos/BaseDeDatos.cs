@@ -68,7 +68,8 @@ public static class BaseDeDatos
             CREATE TABLE IF NOT EXISTS Pendientes (
                 Id INTEGER PRIMARY KEY AUTOINCREMENT,
                 RutaArchivo TEXT NOT NULL UNIQUE,
-                FechaDetectado TEXT NOT NULL
+                FechaDetectado TEXT NOT NULL,
+                Motivo TEXT NOT NULL DEFAULT 'NuevoDocumento'
             );
 
             CREATE TABLE IF NOT EXISTS Borradores (
@@ -78,14 +79,15 @@ public static class BaseDeDatos
             """;
         comando.ExecuteNonQuery();
 
-        AgregarColumnaSiFalta(conexion, "Marcas", "TextoReferencia", "TEXT");
+        AgregarColumnaSiFalta(conexion, "Marcas", "TextoReferencia", "TEXT NULL");
+        AgregarColumnaSiFalta(conexion, "Pendientes", "Motivo", "TEXT NOT NULL DEFAULT 'NuevoDocumento'");
     }
 
     /// <summary>
     /// Migración mínima para bases ya existentes: agrega una columna nueva si todavía no está,
     /// sin tocar los datos ya guardados. SQLite no soporta "ADD COLUMN IF NOT EXISTS" directo.
     /// </summary>
-    private static void AgregarColumnaSiFalta(SqliteConnection conexion, string tabla, string columna, string tipoSql)
+    private static void AgregarColumnaSiFalta(SqliteConnection conexion, string tabla, string columna, string definicionSql)
     {
         using (var verificar = conexion.CreateCommand())
         {
@@ -101,7 +103,7 @@ public static class BaseDeDatos
         }
 
         using var alterar = conexion.CreateCommand();
-        alterar.CommandText = $"ALTER TABLE {tabla} ADD COLUMN {columna} {tipoSql} NULL;";
+        alterar.CommandText = $"ALTER TABLE {tabla} ADD COLUMN {columna} {definicionSql};";
         alterar.ExecuteNonQuery();
     }
 }
