@@ -12,11 +12,11 @@
   - Creada la carpeta `preguntas/` vacía.
 
 ## Siguiente paso
-- REQ-001: mergeado. ✅ Probado por Javier, funciona.
-- REQ-003 (identificar documento nuevo): mergeado. ✅ Los 3 escenarios probados por Javier y funcionando.
-- REQ-002 (guardado automático): mergeado. ✅ Probado por Javier con un caso real (incluyó un bug real de diseño: la coincidencia comparaba contra el nombre de la entidad en vez del texto efectivamente marcado — arreglado, ver sección REQ-002 más abajo).
-- REQ-004 (administrar clasificaciones existentes) en la rama `feature/req-004-administrar-clasificaciones`, PR abierto: https://github.com/jivhdev/Archivero/pull/4. **Todavía sin probar a mano.**
-- Después de que Javier lo confirme: falta REQ-005 (carcasa — bandeja del sistema, minimizar en vez de cerrar, instancia única, ícono que avisa pendientes). Es el último requerimiento funcional de `SPEC.md`.
+- REQ-001, REQ-003, REQ-002, REQ-004: **mergeados**. ✅ Todos probados por Javier y funcionando (varios bugs reales encontrados y arreglados en el camino — ver secciones de cada uno más abajo: coordenadas corridas, coincidencia contra el nombre en vez del texto marcado, parser de fechas que no soportaba varios formatos comunes).
+- REQ-005 (carcasa — bandeja del sistema, minimizar en vez de cerrar, instancia única, ícono que avisa pendientes) en la rama `feature/req-005-carcasa-bandeja`, PR abierto: https://github.com/jivhdev/Archivero/pull/5. **Es el último requerimiento funcional de SPEC.md.**
+  - Verificado desde la sesión de IA: instancia única (abrir el ejecutable dos veces solo deja una corriendo), build y arranque sin errores.
+  - **Falta que Javier pruebe a mano** todo lo visual (parpadeo del ícono, minimizar con la X, volver desde la bandeja, "Salir") — no se puede hacer clic en una ventana real desde esta sesión. Pasos exactos en el PR.
+- Cuando Javier confirme REQ-005, **los 5 requerimientos funcionales de SPEC.md quedan completos**. Después de eso: revisar juntos qué falta para un hito de empaquetado (ejecutable autocontenido) y las decisiones abiertas (licencia, nombres de interfaz) — ver sección de abajo.
 
 ### REQ-001 — qué se construyó
 - Proyecto WPF (.NET 8) creado en `src/Archivero`, solución `Archivero.sln`.
@@ -64,9 +64,21 @@ Fix: se agregó `Marca.TextoReferencia` (texto extraído en el momento de crear 
 ### REQ-004 — qué se construyó
 - **"Administrar clasificaciones"** (botón en `MainWindow`): lista todas las configuraciones (Emisor, Tipo, carpeta destino, disponibilidad), buscador con autocompletado (`Vistas/AdministrarClasificacionesWindow`).
 - **"Revisar disponibilidad"**: chequea `Directory.Exists` de cada carpeta destino, solo al abrir o al tocar el botón (sin polling en background, como pide SPEC.md).
-- **Editar** (`Vistas/EditarConfiguracionWindow`): carpeta destino, formato/patrón de subcarpetas, renombrar o no. No toca Emisor/Tipo ni las coordenadas marcadas (no hay documento de referencia en este flujo). Las opciones de fecha/nombre se deshabilitan si ningún patrón tiene esa marca. Aplica solo hacia adelante — `ActualizarDestino` solo hace `UPDATE`, nunca reclasifica archivos ya guardados.
+- **Editar (reutiliza el asistente paso a paso)**: feedback de Javier — prefiere revisar/corregir desde el mismo asistente de identificación, no un formulario aparte. "Editar" abre `IdentificarDocumentoWindow` en modo edición: si la configuración tiene más de un patrón (ej. guía vieja/nueva de un proveedor), primero se elige cuál con `Vistas/ElegirPatronWindow` (mostrando el texto marcado como Emisor de cada uno); como el documento original ya se movió, se pide un PDF de ejemplo del mismo diseño para revisar/corregir las marcas sobre él, sin tocarlo ni moverlo. Emisor/Tipo quedan de solo lectura. "Guardar cambios" usa `ActualizarPatron` + `ActualizarDestino` — nunca reclasifica archivos ya guardados.
 - **Exportar/respaldar**: vuelca todas las configuraciones+patrones a un JSON, en un botón secundario de la ventana (no en la pantalla principal).
-- Tests nuevos: `ActualizarDestino`, `ObtenerTodas` (34 tests en total).
+- Tests nuevos: `ActualizarDestino`, `ActualizarPatron`, `ObtenerTodas`.
+
+### REQ-002/REQ-003 — bug real: parser de fechas y variante de carpeta año+yyyyMM
+Javier encontró que `"30-ABR-2026"` (día-mes en letras abreviado-año) no lo reconocía el parseo de fecha por defecto. Se agregó `Servicios/FechaExtraidaService.cs`: prueba varios formatos numéricos explícitos, fechas con nombre de mes en español (tabla propia de meses/abreviaturas, no depende de la configuración regional del sistema) en dos formas ("30 de abril de 2026" y "30-ABR-2026"), y como último recurso el parseo general de .NET. Se usa tanto en el asistente como en el guardado automático.
+
+También se agregó la variante de patrón de carpeta `yyyy\yyyyMM` (año en una subcarpeta, mes concatenado con el año dentro — ej. `2026\202601`), pedida por Javier por ser una convención muy usada; se detecta sola y aparece como opción al elegir "por año y mes". 54 tests en total.
+
+### REQ-005 — qué se construyó
+- **Cerrar no apaga**: la X de `MainWindow` la minimiza a la bandeja en vez de cerrar Archivero (`OnClosing` cancela y hace `Hide()`).
+- **Ícono de bandeja** (`Servicios/TrayIconService.cs`, dibujado en código con `System.Drawing`, sin archivo `.ico`): parpadea azul↔naranja mientras haya algo en pendientes, sin popups ni sonidos; deja de parpadear cuando la lista queda vacía.
+- **Instancia única**: `Mutex` con nombre fijo en `App.xaml.cs`; si ya hay una instancia corriendo, la nueva apertura no crea nada — usa `FindWindow`/`SetForegroundWindow` (Win32, vía P/Invoke) para enfocar la ventana existente (aunque esté oculta en la bandeja) y se cierra sola. Verificado desde la sesión: abrir el ejecutable dos veces deja una sola instancia corriendo.
+- **Aviso si la carpeta observada desaparece**: se engancha al evento `Error` del `FileSystemWatcher` (se dispara si el directorio se borra/mueve) y avisa en vez de fallar en silencio.
+- **Falta que Javier pruebe a mano** lo visual (parpadeo real, minimizar/restaurar, "Salir") — no se puede interactuar con una ventana real desde la sesión de IA.
 
 ### Nota sobre la sincronización automática del vault
 Hay un proceso en background (mencionado en `AGENTS.md`) que hace commits automáticos ("Sync automatico: ...") a este repo con la identidad de Javier, incluso a mitad de una sesión de trabajo. No es un problema — solo hace que a veces aparezca un commit intermedio con código a medio terminar en el historial. Ya pasó una vez que agarró un archivo interno del harness (`.claude/scheduled_tasks.lock`), que se sacó y se agregó a `.gitignore`.
