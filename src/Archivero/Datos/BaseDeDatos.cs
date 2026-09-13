@@ -69,6 +69,11 @@ public static class BaseDeDatos
                 RutaArchivo TEXT NOT NULL UNIQUE,
                 FechaDetectado TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS Borradores (
+                RutaArchivo TEXT PRIMARY KEY,
+                Datos TEXT NOT NULL
+            );
             """;
         comando.ExecuteNonQuery();
     }

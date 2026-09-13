@@ -16,10 +16,12 @@ public partial class IdentificarDocumentoWindow : Window
     private readonly EntidadRepository _entidades = new();
     private readonly ConfiguracionDocumentoRepository _configuraciones = new();
     private readonly PendienteRepository _pendientes = new();
+    private readonly BorradorRepository _borradores = new();
     private readonly Dictionary<CampoMarca, Marca> _marcas = new();
 
     private Paso _paso;
     private CampoMarca? _campoActivoParaMarcar;
+    private bool _draftYaResuelto;
 
     private string _emisor = string.Empty;
     private string _tipo = string.Empty;
@@ -40,8 +42,97 @@ public partial class IdentificarDocumentoWindow : Window
         CmbEmisor.ItemsSource = _entidades.Buscar(CategoriaEntidad.Emisor, string.Empty);
         CmbTipo.ItemsSource = _entidades.Buscar(CategoriaEntidad.Tipo, string.Empty);
 
+        var borrador = _borradores.Obtener(_rutaArchivo);
+        if (borrador is not null)
+        {
+            AplicarBorrador(borrador);
+        }
+
         ActualizarEstadosDeMarca();
+        ActualizarMarcasEnVisor();
         MostrarPaso(Paso.EmisorTipo);
+        Closing += IdentificarDocumentoWindow_Closing;
+
+        if (borrador is not null)
+        {
+            System.Windows.MessageBox.Show(
+                this, "Se restauró el progreso que habías dejado sin terminar para este documento.",
+                "Archivero", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+    }
+
+    private void AplicarBorrador(BorradorAsistente borrador)
+    {
+        CmbEmisor.Text = borrador.Emisor;
+        CmbTipo.Text = borrador.Tipo;
+        TxtCarpetaDestino.Text = borrador.CarpetaDestino;
+
+        if (borrador.Formato is not null && Enum.TryParse<FormatoCarpeta>(borrador.Formato, out var formato))
+        {
+            RbDirecto.IsChecked = formato == FormatoCarpeta.Directo;
+            RbAnio.IsChecked = formato == FormatoCarpeta.Anio;
+            RbAnioMes.IsChecked = formato == FormatoCarpeta.AnioMes;
+        }
+
+        if (borrador.PatronCarpeta is not null)
+        {
+            CmbPatronCarpeta.Text = borrador.PatronCarpeta;
+        }
+
+        if (borrador.Renombrar is not null)
+        {
+            RbMantenerNombre.IsChecked = borrador.Renombrar == false;
+            RbExtraerNombre.IsChecked = borrador.Renombrar == true;
+        }
+
+        foreach (var marca in borrador.Marcas)
+        {
+            _marcas[marca.Campo] = marca;
+        }
+    }
+
+    private void GuardarBorradorActual()
+    {
+        var formatoElegido = RbDirecto.IsChecked == true ? FormatoCarpeta.Directo
+            : RbAnio.IsChecked == true ? FormatoCarpeta.Anio
+            : RbAnioMes.IsChecked == true ? FormatoCarpeta.AnioMes
+            : (FormatoCarpeta?)null;
+
+        var renombrarElegido = RbMantenerNombre.IsChecked == true ? false
+            : RbExtraerNombre.IsChecked == true ? true
+            : (bool?)null;
+
+        var borrador = new BorradorAsistente
+        {
+            Emisor = CmbEmisor.Text.Trim(),
+            Tipo = CmbTipo.Text.Trim(),
+            CarpetaDestino = TxtCarpetaDestino.Text,
+            Formato = formatoElegido?.ToString(),
+            PatronCarpeta = string.IsNullOrWhiteSpace(CmbPatronCarpeta.Text) ? null : CmbPatronCarpeta.Text.Trim(),
+            Renombrar = renombrarElegido,
+            Marcas = _marcas.Values.ToList()
+        };
+
+        var hayAlgoQueGuardar = !string.IsNullOrWhiteSpace(borrador.Emisor)
+            || !string.IsNullOrWhiteSpace(borrador.Tipo)
+            || borrador.Marcas.Count > 0
+            || !string.IsNullOrWhiteSpace(borrador.CarpetaDestino);
+
+        if (hayAlgoQueGuardar)
+        {
+            _borradores.Guardar(_rutaArchivo, borrador);
+        }
+    }
+
+    private void IdentificarDocumentoWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        // Si se cierra la ventana sin pasar por "Guardar y clasificar", "Posponer" o
+        // "Cancelar" (por ejemplo, con la X), se trata igual que Posponer: no se pierde
+        // nada de lo ya tipeado/marcado.
+        if (!_draftYaResuelto)
+        {
+            GuardarBorradorActual();
+        }
     }
 
     private void MostrarPaso(Paso nuevoPaso)
@@ -470,6 +561,8 @@ public partial class IdentificarDocumentoWindow : Window
             }
 
             _pendientes.Quitar(_rutaArchivo);
+            _borradores.Eliminar(_rutaArchivo);
+            _draftYaResuelto = true;
 
             System.Windows.MessageBox.Show(
                 this, $"Documento guardado en:\n{rutaFinal}", "Archivero",
@@ -490,6 +583,8 @@ public partial class IdentificarDocumentoWindow : Window
 
     private void BtnPosponer_Click(object sender, RoutedEventArgs e)
     {
+        GuardarBorradorActual();
+        _draftYaResuelto = true;
         DialogResult = false;
         Close();
     }
@@ -503,6 +598,8 @@ public partial class IdentificarDocumentoWindow : Window
 
         if (confirmar == MessageBoxResult.Yes)
         {
+            _borradores.Eliminar(_rutaArchivo);
+            _draftYaResuelto = true;
             DialogResult = false;
             Close();
         }
