@@ -8,13 +8,18 @@
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0" BorderBrush="Gray" BorderThickness="1" Background="White">
-            <Grid Name="ContenedorPagina" ClipToBounds="True">
-                <Image Name="ImagenPagina" Stretch="Uniform"
-                       MouseLeftButtonDown="ImagenPagina_MouseLeftButtonDown"
-                       MouseMove="ImagenPagina_MouseMove"
-                       MouseLeftButtonUp="ImagenPagina_MouseLeftButtonUp"/>
-                <Canvas Name="CapaMarcas" IsHitTestVisible="False"/>
-            </Grid>
+            <!-- El Viewbox escala Image + Canvas como una sola unidad: los clics dentro de
+                 LienzoPagina llegan en coordenadas de pixel nativas de la pagina (0..Ancho,
+                 0..Alto), sin importar a que tamaño se ve en pantalla. -->
+            <Viewbox Stretch="Uniform">
+                <Grid Name="LienzoPagina"
+                      MouseLeftButtonDown="LienzoPagina_MouseLeftButtonDown"
+                      MouseMove="LienzoPagina_MouseMove"
+                      MouseLeftButtonUp="LienzoPagina_MouseLeftButtonUp">
+                    <Image Name="ImagenPagina" Stretch="None"/>
+                    <Canvas Name="CapaMarcas" IsHitTestVisible="False"/>
+                </Grid>
+            </Viewbox>
         </Border>
 
         <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,0">

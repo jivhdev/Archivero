@@ -105,6 +105,13 @@ public partial class IdentificarDocumentoWindow : Window
         _marcas[campo] = new Marca(campo, pagina, fraccion.X, fraccion.Y, fraccion.Ancho, fraccion.Alto);
         _campoActivoParaMarcar = null;
         ActualizarEstadosDeMarca();
+        ActualizarMarcasEnVisor();
+    }
+
+    private void ActualizarMarcasEnVisor()
+    {
+        var marcas = _marcas.Values.Select(m => (m.Campo, m.Pagina, new RectanguloFraccion(m.X, m.Y, m.Ancho, m.Alto)));
+        Visor.MostrarMarcas(marcas);
     }
 
     private void ActualizarEstadosDeMarca()
@@ -115,8 +122,20 @@ public partial class IdentificarDocumentoWindow : Window
         TxtEstadoMarcaNombre.Text = EstadoTexto(CampoMarca.NombreArchivo);
     }
 
-    private string EstadoTexto(CampoMarca campo) =>
-        _marcas.TryGetValue(campo, out var marca) ? $"Marca hecha (página {marca.Pagina + 1})." : "Todavía no marcado.";
+    private string EstadoTexto(CampoMarca campo)
+    {
+        if (!_marcas.TryGetValue(campo, out var marca))
+        {
+            return "Todavía no marcado.";
+        }
+
+        var rect = new RectanguloFraccion(marca.X, marca.Y, marca.Ancho, marca.Alto);
+        var texto = LectorPdf.ExtraerTexto(_rutaArchivo, marca.Pagina, rect);
+
+        return string.IsNullOrWhiteSpace(texto)
+            ? $"⚠ Marcado en página {marca.Pagina + 1}, pero no se pudo leer texto ahí. Probá marcar de nuevo, un poco más grande."
+            : $"✅ \"{texto}\" (página {marca.Pagina + 1})";
+    }
 
     private void CmbEmisor_TextChanged(object sender, TextChangedEventArgs e)
     {

@@ -1,10 +1,12 @@
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using Archivero.Datos;
 using Archivero.Servicios.Pdf;
 using Point = System.Windows.Point;
 using Rectangle = System.Windows.Shapes.Rectangle;
 using UserControl = System.Windows.Controls.UserControl;
+using TextBlock = System.Windows.Controls.TextBlock;
 using MouseEventArgs = System.Windows.Input.MouseEventArgs;
 using MouseButtonEventArgs = System.Windows.Input.MouseButtonEventArgs;
 using MouseButtonState = System.Windows.Input.MouseButtonState;
@@ -24,6 +26,7 @@ public partial class VisorPdfConMarcado : UserControl
     private int _altoPaginaActual;
     private Point? _inicioArrastre;
     private Rectangle? _rectanguloArrastre;
+    private List<(CampoMarca Campo, int Pagina, RectanguloFraccion Rect)> _marcasGuardadas = [];
 
     public event Action<int, RectanguloFraccion>? MarcaRealizada;
 
@@ -40,6 +43,13 @@ public partial class VisorPdfConMarcado : UserControl
         MostrarPaginaActual();
     }
 
+    /// <summary>Reemplaza el conjunto de marcas ya confirmadas que se dibujan en la página (una por campo).</summary>
+    public void MostrarMarcas(IEnumerable<(CampoMarca Campo, int Pagina, RectanguloFraccion Rect)> marcas)
+    {
+        _marcasGuardadas = marcas.ToList();
+        RedibujarMarcasPersistentes();
+    }
+
     private void MostrarPaginaActual()
     {
         var pagina = LectorPdf.RenderizarPagina(_rutaPdf, _paginaActual);
@@ -51,12 +61,81 @@ public partial class VisorPdfConMarcado : UserControl
         bitmap.Freeze();
 
         ImagenPagina.Source = bitmap;
+        LienzoPagina.Width = pagina.Ancho;
+        LienzoPagina.Height = pagina.Alto;
+
         TxtPagina.Text = $"Página {_paginaActual + 1} de {_totalPaginas}";
         BtnAnterior.IsEnabled = _paginaActual > 0;
         BtnSiguiente.IsEnabled = _paginaActual < _totalPaginas - 1;
 
-        CapaMarcas.Children.Clear();
+        RedibujarMarcasPersistentes();
     }
+
+    private void RedibujarMarcasPersistentes()
+    {
+        CapaMarcas.Children.Clear();
+
+        foreach (var (campo, pagina, rect) in _marcasGuardadas)
+        {
+            if (pagina != _paginaActual)
+            {
+                continue;
+            }
+
+            DibujarMarcaPersistente(campo, rect);
+        }
+    }
+
+    private void DibujarMarcaPersistente(CampoMarca campo, RectanguloFraccion rect)
+    {
+        var color = ColorParaCampo(campo);
+        var x = rect.X * _anchoPaginaActual;
+        var y = rect.Y * _altoPaginaActual;
+        var ancho = rect.Ancho * _anchoPaginaActual;
+        var alto = rect.Alto * _altoPaginaActual;
+
+        var rectangulo = new Rectangle
+        {
+            Width = ancho,
+            Height = alto,
+            Stroke = new SolidColorBrush(color),
+            StrokeThickness = 3,
+            Fill = new SolidColorBrush(Color.FromArgb(40, color.R, color.G, color.B))
+        };
+        Canvas.SetLeft(rectangulo, x);
+        Canvas.SetTop(rectangulo, y);
+        CapaMarcas.Children.Add(rectangulo);
+
+        var etiqueta = new TextBlock
+        {
+            Text = NombreCampo(campo),
+            Background = new SolidColorBrush(color),
+            Foreground = Brushes.White,
+            Padding = new Thickness(3, 1, 3, 1),
+            FontSize = 12
+        };
+        Canvas.SetLeft(etiqueta, x);
+        Canvas.SetTop(etiqueta, Math.Max(0, y - 18));
+        CapaMarcas.Children.Add(etiqueta);
+    }
+
+    private static Color ColorParaCampo(CampoMarca campo) => campo switch
+    {
+        CampoMarca.Emisor => Colors.Crimson,
+        CampoMarca.Tipo => Colors.DodgerBlue,
+        CampoMarca.Fecha => Colors.SeaGreen,
+        CampoMarca.NombreArchivo => Colors.DarkOrange,
+        _ => Colors.Gray
+    };
+
+    private static string NombreCampo(CampoMarca campo) => campo switch
+    {
+        CampoMarca.Emisor => "Emisor",
+        CampoMarca.Tipo => "Tipo",
+        CampoMarca.Fecha => "Fecha",
+        CampoMarca.NombreArchivo => "Nombre archivo",
+        _ => campo.ToString()
+    };
 
     private void BtnAnterior_Click(object sender, RoutedEventArgs e)
     {
@@ -76,15 +155,15 @@ public partial class VisorPdfConMarcado : UserControl
         }
     }
 
-    private void ImagenPagina_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    private void LienzoPagina_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (ImagenPagina.Source is null)
         {
             return;
         }
 
-        _inicioArrastre = e.GetPosition(ImagenPagina);
-        ImagenPagina.CaptureMouse();
+        _inicioArrastre = e.GetPosition(LienzoPagina);
+        LienzoPagina.CaptureMouse();
 
         _rectanguloArrastre = new Rectangle
         {
@@ -95,14 +174,14 @@ public partial class VisorPdfConMarcado : UserControl
         CapaMarcas.Children.Add(_rectanguloArrastre);
     }
 
-    private void ImagenPagina_MouseMove(object sender, MouseEventArgs e)
+    private void LienzoPagina_MouseMove(object sender, MouseEventArgs e)
     {
         if (_inicioArrastre is not { } inicio || _rectanguloArrastre is null || e.LeftButton != MouseButtonState.Pressed)
         {
             return;
         }
 
-        var actual = e.GetPosition(ImagenPagina);
+        var actual = e.GetPosition(LienzoPagina);
         var x = Math.Min(inicio.X, actual.X);
         var y = Math.Min(inicio.Y, actual.Y);
         var ancho = Math.Abs(actual.X - inicio.X);
@@ -114,23 +193,28 @@ public partial class VisorPdfConMarcado : UserControl
         _rectanguloArrastre.Height = alto;
     }
 
-    private void ImagenPagina_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    private void LienzoPagina_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
         if (_inicioArrastre is not { } inicio)
         {
             return;
         }
 
-        ImagenPagina.ReleaseMouseCapture();
-        var fin = e.GetPosition(ImagenPagina);
+        LienzoPagina.ReleaseMouseCapture();
+        var fin = e.GetPosition(LienzoPagina);
         _inicioArrastre = null;
+
+        // El rectangulo de arrastre es siempre transitorio: si se confirma una marca, el
+        // dueño del visor va a llamar a MostrarMarcas() y este redibujo lo reemplaza; si no
+        // se confirma nada, no debe quedar una caja suelta en pantalla.
+        if (_rectanguloArrastre is not null)
+        {
+            CapaMarcas.Children.Remove(_rectanguloArrastre);
+            _rectanguloArrastre = null;
+        }
 
         if (Math.Abs(fin.X - inicio.X) < 4 || Math.Abs(fin.Y - inicio.Y) < 4)
         {
-            if (_rectanguloArrastre is not null)
-            {
-                CapaMarcas.Children.Remove(_rectanguloArrastre);
-            }
             return;
         }
 
@@ -141,46 +225,15 @@ public partial class VisorPdfConMarcado : UserControl
         }
     }
 
-    private Rect ObtenerRectanguloImagenEnControl()
-    {
-        var controlAncho = ImagenPagina.ActualWidth;
-        var controlAlto = ImagenPagina.ActualHeight;
-        if (controlAncho <= 0 || controlAlto <= 0 || _anchoPaginaActual <= 0 || _altoPaginaActual <= 0)
-        {
-            return new Rect(0, 0, controlAncho, controlAlto);
-        }
-
-        var escalaControl = controlAncho / controlAlto;
-        var escalaImagen = (double)_anchoPaginaActual / _altoPaginaActual;
-
-        double anchoMostrado, altoMostrado;
-        if (escalaImagen > escalaControl)
-        {
-            anchoMostrado = controlAncho;
-            altoMostrado = controlAncho / escalaImagen;
-        }
-        else
-        {
-            altoMostrado = controlAlto;
-            anchoMostrado = controlAlto * escalaImagen;
-        }
-
-        var x = (controlAncho - anchoMostrado) / 2;
-        var y = (controlAlto - altoMostrado) / 2;
-
-        return new Rect(x, y, anchoMostrado, altoMostrado);
-    }
-
     private RectanguloFraccion? ConvertirAFraccion(Point inicio, Point fin)
     {
-        var rectImagen = ObtenerRectanguloImagenEnControl();
-        if (rectImagen.Width <= 0 || rectImagen.Height <= 0)
+        if (_anchoPaginaActual <= 0 || _altoPaginaActual <= 0)
         {
             return null;
         }
 
-        double NormalizarX(double x) => Math.Clamp((x - rectImagen.X) / rectImagen.Width, 0, 1);
-        double NormalizarY(double y) => Math.Clamp((y - rectImagen.Y) / rectImagen.Height, 0, 1);
+        double NormalizarX(double x) => Math.Clamp(x / _anchoPaginaActual, 0, 1);
+        double NormalizarY(double y) => Math.Clamp(y / _altoPaginaActual, 0, 1);
 
         var x0 = NormalizarX(Math.Min(inicio.X, fin.X));
         var x1 = NormalizarX(Math.Max(inicio.X, fin.X));
