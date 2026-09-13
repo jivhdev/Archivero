@@ -103,7 +103,7 @@ Si la carpeta observada deja de existir (se borra o se mueve) mientras Archivero
 - **Plataforma:** .NET (C#) con WPF, empaquetado como ejecutable de Windows autocontenido. Solo Windows (confirmado — no requiere Mac/Linux).
 - **Almacenamiento:** SQLite, un archivo local único, para las configuraciones, los patrones de reconocimiento, y las entidades conocidas (para el autocompletado).
 - **Lectura/renderizado de PDF:** librería .NET basada en PDFium, embebida en la propia ventana de Archivero — nunca abre Chrome ni ninguna app externa.
-- **Restricción de licencia:** todas las librerías/tecnologías usadas deben ser gratuitas de usar y distribuir — la licencia final de Archivero se define según qué librerías se terminen usando (pendiente, ver Open Issues), pero el uso debe ser siempre gratis para quien lo use.
+- **Licencia del código:** MIT — decidida una vez confirmado que todas las dependencias reales (Docnet.Core/PDFium, SQLite, .NET) son permisivas y no imponen restricciones entre sí. Permite uso, modificación y redistribución libres, incluso comercial por terceros — el uso por parte de cualquier usuario final siempre es gratis.
 - **Publicación del código:** open source, pensado para publicarse en GitHub. La base de datos real de configuraciones nunca se incluye en el repositorio público (excluida vía `.gitignore`); la app se distribuye con una base de datos vacía.
 - **Vigilancia de carpetas:** tiempo real para carpetas locales o de Google Drive (siempre disponibles localmente); sin polling automático en segundo plano para carpetas de red/servidor — solo chequeo al abrir Archivero o a pedido explícito del usuario, para no sobrecargar un recurso compartido.
 
@@ -162,8 +162,7 @@ Medida de la respuesta: 0 archivos de configuración real incluidos en el reposi
 - No procesa nada que no sea un PDF con texto plano extraíble — eso se guarda a mano.
 - No modifica el contenido de los documentos — solo los renombra y/o los mueve.
 - No es un lector de PDF de propósito general, más allá de lo necesario para identificar y marcar campos.
+- No tiene ninguna opción de personalización visual — es un programa sin personalización *(decisión revisada el 2026-09-13: la Fase 1 había registrado un deseo de "personalización liviana"; Javier decidió que no, una vez viendo el programa funcionando, que es mejor no tenerla)*. Ícono/logo único y fijo: el mismo diseño ya usado en el ícono de la bandeja del sistema en su estado normal (una "A" blanca sobre fondo azul, ver `Servicios/TrayIconService.cs`), aplicado también como ícono de la aplicación/ejecutable.
 
 ## Open issues
 - Nombres finales pendientes de definir (no bloquean la construcción, son solo texto de interfaz): la sección "pendientes por reconocer", la sección "configuraciones/identificaciones/identidades", el botón de revisar/actualizar disponibilidad, la opción de "vincular a configuración existente".
-- Elección final de la licencia de código (ej. MIT u otra): pendiente de qué librería .NET específica se use para PDFium, para evitar conflictos de licencia entre sí. La única restricción fija es que el uso debe ser siempre gratis para cualquier usuario final.
-- Qué exactamente es "personalización visual liviana" no está definido en detalle — se decide durante la construcción, dentro del espíritu de "poca, pero que exista".
