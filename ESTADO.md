@@ -14,9 +14,10 @@
 ## Siguiente paso
 - REQ-001: mergeado. ✅ Probado por Javier, funciona.
 - REQ-003 (identificar documento nuevo) en la rama `feature/req-003-identificar-documento-nuevo`, PR abierto: https://github.com/jivhdev/Archivero/pull/2. Se adelantó a REQ-002 porque REQ-002 (coincidencia automática) necesita que ya existan configuraciones con patrones, y esas solo se crean con el asistente de REQ-003.
-- **Probado por Javier de punta a punta** (marcado sobre el PDF, zoom, guardar y clasificar, vincular a configuración existente) — funciona. En el camino salieron y se arreglaron varios bugs reales (ver commits de la rama): coordenadas corridas, sin preview del texto extraído, bug de guardado duplicado (UNIQUE constraint), y se pasó todo el texto de la UI a español neutro (Javier no es argentino).
-- REQ-003 **todavía no está 100% cerrado**: falta el escenario "posponer con progreso parcial guardado" (hoy: el documento no se pierde, pero no se retoma lo ya tipeado/marcado si se cierra a mitad del asistente).
-- Después: terminar ese último escenario, y recién ahí arrancar REQ-002.
+- Los 3 escenarios de SPEC.md ya están implementados: crear configuración nueva, vincular a una existente, y posponer con progreso guardado.
+  - **Probados por Javier y funcionando**: crear configuración nueva, vincular a una existente (con varios bugs reales encontrados y arreglados en el camino — ver commits de la rama: coordenadas corridas, sin preview del texto extraído, bug de guardado duplicado por UNIQUE constraint, texto de la UI pasado a español neutro).
+  - **Todavía sin probar a mano**: "posponer con progreso guardado" (implementado en el último commit de la rama, compila y pasa los tests, pero falta que Javier lo pruebe de verdad antes de mergear — abrir un documento, marcar algo, cerrar sin terminar, y volver a abrirlo para confirmar que se restaura).
+- Después de que Javier confirme "posponer", mergear el PR y arrancar REQ-002.
 
 ### REQ-001 — qué se construyó
 - Proyecto WPF (.NET 8) creado en `src/Archivero`, solución `Archivero.sln`.
@@ -39,9 +40,11 @@
 ### REQ-003 — escenario "vincular a configuración existente"
 Implementado: si el Emisor+Tipo que se está identificando ya tiene una configuración guardada, el asistente ofrece vincular el documento actual a ella como patrón de reconocimiento adicional (en vez de intentar crear una segunda configuración, que rompía con un error de SQLite). La carpeta/formato/nombre quedan fijados por la configuración existente; igual hay que marcar Fecha y/o el campo de nombre si esa configuración los usa, porque las coordenadas son específicas del diseño de cada documento.
 
-### REQ-003 — qué falta (no dar el requerimiento por cerrado)
-- Escenario "posponer": simplificado — el documento no se pierde (sigue en pendientes), pero lo ya tipeado/marcado no se guarda todavía para retomarlo después.
-- Colisión de nombre de archivo al clasificar el documento actual: por ahora solo muestra un error simple, no las 4 opciones completas de REQ-002 (Revisar/Reemplazar/Pendiente/Excepción) — es esperable, ese flujo es explícitamente de REQ-002.
+### REQ-003 — escenario "posponer con progreso guardado"
+Implementado: tabla `Borradores` (`Datos/BorradorRepository.cs`), clave = ruta del archivo pendiente, valor = JSON con lo tipeado/marcado hasta el momento. Se guarda al tocar "Posponer" o al cerrar la ventana sin terminar (la X, tratado igual que posponer per SPEC.md); se restaura automáticamente la próxima vez que se abre ese mismo documento, con un aviso. "Cancelar" (con confirmación) descarta el borrador; guardar con éxito también lo limpia. **Falta que Javier lo pruebe a mano.**
+
+### REQ-003 — qué queda fuera a propósito (no es un defecto)
+- Colisión de nombre de archivo al clasificar el documento actual: por ahora solo muestra un error simple, no las 4 opciones completas de REQ-002 (Revisar/Reemplazar/Pendiente/Excepción) — ese flujo es explícitamente de REQ-002.
 
 ### Nota sobre la sincronización automática del vault
 Hay un proceso en background (mencionado en `AGENTS.md`) que hace commits automáticos ("Sync automatico: ...") a este repo con la identidad de Javier, incluso a mitad de una sesión de trabajo. No es un problema — solo hace que a veces aparezca un commit intermedio con código a medio terminar en el historial. Ya pasó una vez que agarró un archivo interno del harness (`.claude/scheduled_tasks.lock`), que se sacó y se agregó a `.gitignore`.
