@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.IO;
 using Archivero.Datos;
 using Archivero.Servicios.Pdf;
@@ -17,8 +16,6 @@ public record ResultadoProcesamiento(ResultadoGuardadoAutomatico Resultado, stri
 
 public static class GuardadoAutomaticoService
 {
-    private static readonly CultureInfo Cultura = CultureInfo.GetCultureInfo("es-ES");
-
     /// <summary>
     /// Extrae Fecha y/o Nombre de archivo (según lo que pida la configuración) usando el
     /// patrón que ya coincidió, valida que tengan una forma válida, y clasifica el archivo.
@@ -37,7 +34,7 @@ public static class GuardadoAutomaticoService
             }
 
             var textoFecha = LectorPdf.ExtraerTexto(rutaArchivo, marcaFecha.Pagina, ARect(marcaFecha));
-            if (!DateTime.TryParse(textoFecha, Cultura, DateTimeStyles.None, out var fechaParseada))
+            if (!FechaExtraidaService.TryParsear(textoFecha, out var fechaParseada))
             {
                 return new ResultadoProcesamiento(ResultadoGuardadoAutomatico.ValorInvalido, Detalle: $"Fecha extraída inválida: \"{textoFecha}\".");
             }

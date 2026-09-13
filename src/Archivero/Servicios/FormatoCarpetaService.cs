@@ -9,7 +9,7 @@ public record DeteccionFormatoCarpeta(FormatoCarpeta Formato, string? PatronCarp
 public static class FormatoCarpetaService
 {
     private static readonly string[] PatronesAnioConocidos = ["yyyy", "yy"];
-    private static readonly string[] PatronesMesConocidos = ["MM", "MMMM"];
+    private static readonly string[] PatronesMesConocidos = ["MM", "MMMM", "yyyyMM"];
     private static readonly CultureInfo Cultura = CultureInfo.GetCultureInfo("es-ES");
 
     public static DeteccionFormatoCarpeta Detectar(string carpetaDestino)

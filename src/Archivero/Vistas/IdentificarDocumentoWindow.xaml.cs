@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Forms;
@@ -361,7 +360,7 @@ public partial class IdentificarDocumentoWindow : Window
         }
 
         var conocidos = _configuraciones.ObtenerPatronesDeCarpetaConocidos();
-        var presets = esAnioMes ? new[] { "yyyy\\MM", "yyyy\\MMMM" } : new[] { "yyyy", "yy" };
+        var presets = esAnioMes ? new[] { "yyyy\\MM", "yyyy\\MMMM", "yyyy\\yyyyMM" } : new[] { "yyyy", "yy" };
         var opciones = presets.Concat(conocidos.Where(p => esAnioMes == p.Contains('\\'))).Distinct().ToList();
 
         CmbPatronCarpeta.ItemsSource = opciones;
@@ -584,7 +583,7 @@ public partial class IdentificarDocumentoWindow : Window
                     _rutaArchivo, marcaFecha.Pagina,
                     new RectanguloFraccion(marcaFecha.X, marcaFecha.Y, marcaFecha.Ancho, marcaFecha.Alto));
 
-                if (!DateTime.TryParse(textoFecha, CultureInfo.GetCultureInfo("es-ES"), DateTimeStyles.None, out var fechaParseada))
+                if (!FechaExtraidaService.TryParsear(textoFecha, out var fechaParseada))
                 {
                     MostrarError($"No se pudo interpretar la fecha extraída (\"{textoFecha}\"). Revisar la marca sobre el PDF.");
                     return;
