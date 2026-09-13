@@ -227,7 +227,8 @@ public partial class IdentificarDocumentoWindow : Window
             return;
         }
 
-        _marcas[campo] = new Marca(campo, pagina, fraccion.X, fraccion.Y, fraccion.Ancho, fraccion.Alto);
+        var textoExtraido = LectorPdf.ExtraerTexto(_rutaArchivo, pagina, fraccion);
+        _marcas[campo] = new Marca(campo, pagina, fraccion.X, fraccion.Y, fraccion.Ancho, fraccion.Alto, textoExtraido);
         _campoActivoParaMarcar = null;
         ResaltarBotonActivo(null);
         ActualizarEstadosDeMarca();
@@ -255,12 +256,9 @@ public partial class IdentificarDocumentoWindow : Window
             return "Todavía no marcado.";
         }
 
-        var rect = new RectanguloFraccion(marca.X, marca.Y, marca.Ancho, marca.Alto);
-        var texto = LectorPdf.ExtraerTexto(_rutaArchivo, marca.Pagina, rect);
-
-        return string.IsNullOrWhiteSpace(texto)
+        return string.IsNullOrWhiteSpace(marca.TextoReferencia)
             ? $"⚠ Marcado en página {marca.Pagina + 1}, pero no se pudo leer texto ahí. Probar marcar de nuevo, un poco más grande."
-            : $"✅ \"{texto}\" (página {marca.Pagina + 1})";
+            : $"✅ \"{marca.TextoReferencia}\" (página {marca.Pagina + 1})";
     }
 
     private void CmbEmisor_TextChanged(object sender, TextChangedEventArgs e)

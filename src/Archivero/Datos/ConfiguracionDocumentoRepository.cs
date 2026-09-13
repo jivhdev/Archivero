@@ -133,8 +133,8 @@ public class ConfiguracionDocumentoRepository
             insertarMarca.Transaction = transaccion;
             insertarMarca.CommandText =
                 """
-                INSERT INTO Marcas (PatronId, Campo, Pagina, X, Y, Ancho, Alto)
-                VALUES ($patronId, $campo, $pagina, $x, $y, $ancho, $alto);
+                INSERT INTO Marcas (PatronId, Campo, Pagina, X, Y, Ancho, Alto, TextoReferencia)
+                VALUES ($patronId, $campo, $pagina, $x, $y, $ancho, $alto, $textoReferencia);
                 """;
             insertarMarca.Parameters.AddWithValue("$patronId", patronId);
             insertarMarca.Parameters.AddWithValue("$campo", marca.Campo.ToString());
@@ -143,6 +143,7 @@ public class ConfiguracionDocumentoRepository
             insertarMarca.Parameters.AddWithValue("$y", marca.Y);
             insertarMarca.Parameters.AddWithValue("$ancho", marca.Ancho);
             insertarMarca.Parameters.AddWithValue("$alto", marca.Alto);
+            insertarMarca.Parameters.AddWithValue("$textoReferencia", (object?)marca.TextoReferencia ?? DBNull.Value);
             insertarMarca.ExecuteNonQuery();
         }
     }
@@ -180,7 +181,7 @@ public class ConfiguracionDocumentoRepository
         using var comando = conexion.CreateCommand();
         comando.CommandText =
             """
-            SELECT m.PatronId, m.Campo, m.Pagina, m.X, m.Y, m.Ancho, m.Alto
+            SELECT m.PatronId, m.Campo, m.Pagina, m.X, m.Y, m.Ancho, m.Alto, m.TextoReferencia
             FROM Marcas m
             JOIN PatronesReconocimiento p ON p.Id = m.PatronId
             WHERE p.ConfiguracionId = $configuracionId
@@ -205,7 +206,8 @@ public class ConfiguracionDocumentoRepository
                 lector.GetDouble(3),
                 lector.GetDouble(4),
                 lector.GetDouble(5),
-                lector.GetDouble(6)));
+                lector.GetDouble(6),
+                lector.IsDBNull(7) ? null : lector.GetString(7)));
         }
 
         return patrones.Select(p => new PatronReconocimiento(p.Key, p.Value)).ToList();

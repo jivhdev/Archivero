@@ -61,6 +61,7 @@ public static class BaseDeDatos
                 Y REAL NOT NULL,
                 Ancho REAL NOT NULL,
                 Alto REAL NOT NULL,
+                TextoReferencia TEXT NULL,
                 UNIQUE (PatronId, Campo)
             );
 
@@ -76,5 +77,31 @@ public static class BaseDeDatos
             );
             """;
         comando.ExecuteNonQuery();
+
+        AgregarColumnaSiFalta(conexion, "Marcas", "TextoReferencia", "TEXT");
+    }
+
+    /// <summary>
+    /// Migración mínima para bases ya existentes: agrega una columna nueva si todavía no está,
+    /// sin tocar los datos ya guardados. SQLite no soporta "ADD COLUMN IF NOT EXISTS" directo.
+    /// </summary>
+    private static void AgregarColumnaSiFalta(SqliteConnection conexion, string tabla, string columna, string tipoSql)
+    {
+        using (var verificar = conexion.CreateCommand())
+        {
+            verificar.CommandText = $"PRAGMA table_info({tabla});";
+            using var lector = verificar.ExecuteReader();
+            while (lector.Read())
+            {
+                if (string.Equals(lector.GetString(1), columna, StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+            }
+        }
+
+        using var alterar = conexion.CreateCommand();
+        alterar.CommandText = $"ALTER TABLE {tabla} ADD COLUMN {columna} {tipoSql} NULL;";
+        alterar.ExecuteNonQuery();
     }
 }
