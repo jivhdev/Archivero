@@ -77,8 +77,40 @@ public partial class AdministrarClasificacionesWindow : Window
             return;
         }
 
-        var editor = new EditarConfiguracionWindow(fila.Configuracion) { Owner = this };
-        if (editor.ShowDialog() == true)
+        // Necesitamos los patrones (ObtenerTodas no los trae, para no pagar ese costo en la lista).
+        var configuracion = _configuraciones.BuscarPorEmisorYTipo(fila.Emisor, fila.Tipo);
+        if (configuracion is null || configuracion.Patrones.Count == 0)
+        {
+            System.Windows.MessageBox.Show(this, "Esta configuración no tiene ningún patrón de reconocimiento guardado.", "Archivero",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var patron = configuracion.Patrones[0];
+        if (configuracion.Patrones.Count > 1)
+        {
+            var elegirPatron = new ElegirPatronWindow(configuracion.Patrones) { Owner = this };
+            if (elegirPatron.ShowDialog() != true || elegirPatron.PatronElegido is null)
+            {
+                return;
+            }
+
+            patron = elegirPatron.PatronElegido;
+        }
+
+        using var dialogoArchivo = new OpenFileDialog
+        {
+            Title = "Elegir un PDF de ejemplo de este diseño para revisar/corregir las marcas",
+            Filter = "Documentos PDF (*.pdf)|*.pdf"
+        };
+
+        if (dialogoArchivo.ShowDialog() != System.Windows.Forms.DialogResult.OK)
+        {
+            return;
+        }
+
+        var asistente = new IdentificarDocumentoWindow(dialogoArchivo.FileName, configuracion, patron) { Owner = this };
+        if (asistente.ShowDialog() == true)
         {
             CargarClasificaciones();
         }

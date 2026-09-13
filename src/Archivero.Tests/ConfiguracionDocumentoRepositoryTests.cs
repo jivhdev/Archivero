@@ -106,6 +106,28 @@ public class ConfiguracionDocumentoRepositoryTests : IDisposable
     }
 
     [Fact]
+    public void ActualizarPatron_ReemplazaLasMarcasDeEsePatron()
+    {
+        var repo = new ConfiguracionDocumentoRepository();
+        var configuracionId = repo.GuardarNueva(
+            "Banco Galicia", "Resumen de cuenta", @"C:\Destino", FormatoCarpeta.Directo, null, false,
+            [new Marca(CampoMarca.Emisor, 0, 0.1, 0.1, 0.2, 0.05, "12.345.678-9"), new Marca(CampoMarca.Tipo, 0, 0.1, 0.2, 0.2, 0.05, "Resumen")]);
+
+        var configuracionAntes = repo.BuscarPorEmisorYTipo("Banco Galicia", "Resumen de cuenta")!;
+        var patronId = Assert.Single(configuracionAntes.Patrones).Id;
+
+        repo.ActualizarPatron(patronId,
+            [new Marca(CampoMarca.Emisor, 0, 0.5, 0.5, 0.2, 0.05, "otro-rut"), new Marca(CampoMarca.Tipo, 0, 0.5, 0.6, 0.2, 0.05, "Resumen v2")]);
+
+        var configuracionDespues = repo.BuscarPorEmisorYTipo("Banco Galicia", "Resumen de cuenta")!;
+        var patron = Assert.Single(configuracionDespues.Patrones);
+
+        Assert.Equal(2, patron.Marcas.Count);
+        Assert.Contains(patron.Marcas, m => m.Campo == CampoMarca.Emisor && m.TextoReferencia == "otro-rut");
+        Assert.Contains(patron.Marcas, m => m.Campo == CampoMarca.Tipo && m.TextoReferencia == "Resumen v2");
+    }
+
+    [Fact]
     public void ObtenerTodas_DevuelveTodasLasConfiguracionesGuardadas()
     {
         var repo = new ConfiguracionDocumentoRepository();

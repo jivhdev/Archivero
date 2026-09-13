@@ -30,6 +30,7 @@ public partial class IdentificarDocumentoWindow : Window
     private string? _patronCarpeta;
     private bool _renombrar;
     private ConfiguracionDocumento? _configuracionExistente;
+    private readonly (ConfiguracionDocumento Configuracion, int PatronId)? _edicion;
 
     public IdentificarDocumentoWindow(string rutaArchivo)
     {
@@ -58,6 +59,61 @@ public partial class IdentificarDocumentoWindow : Window
             System.Windows.MessageBox.Show(
                 this, "Se restauró el progreso que habías dejado sin terminar para este documento.",
                 "Archivero", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+    }
+
+    /// <summary>
+    /// Modo edicion (REQ-004): revisa/corrige un patron de reconocimiento ya existente usando
+    /// un PDF de ejemplo. No mueve ni renombra ese archivo — solo actualiza las marcas y la
+    /// configuracion (carpeta/formato/nombre) en la base.
+    /// </summary>
+    public IdentificarDocumentoWindow(string rutaArchivo, ConfiguracionDocumento configuracion, PatronReconocimiento patron)
+    {
+        InitializeComponent();
+        _rutaArchivo = rutaArchivo;
+        _edicion = (configuracion, patron.Id);
+        BtnPosponer.Visibility = Visibility.Collapsed;
+
+        Visor.CargarPdf(rutaArchivo);
+        Visor.MarcaRealizada += Visor_MarcaRealizada;
+
+        PrecargarParaEdicion(configuracion, patron);
+
+        ActualizarEstadosDeMarca();
+        ActualizarMarcasEnVisor();
+        MostrarPaso(Paso.EmisorTipo);
+    }
+
+    private void PrecargarParaEdicion(ConfiguracionDocumento configuracion, PatronReconocimiento patron)
+    {
+        _emisor = configuracion.Emisor;
+        _tipo = configuracion.Tipo;
+        _carpetaDestino = configuracion.CarpetaDestino;
+        _formato = configuracion.FormatoCarpeta;
+        _patronCarpeta = configuracion.PatronCarpeta;
+        _renombrar = configuracion.Renombrar;
+
+        CmbEmisor.Text = _emisor;
+        CmbTipo.Text = _tipo;
+        CmbEmisor.IsEnabled = false;
+        CmbTipo.IsEnabled = false;
+
+        TxtCarpetaDestino.Text = _carpetaDestino;
+
+        RbDirecto.IsChecked = _formato == FormatoCarpeta.Directo;
+        RbAnio.IsChecked = _formato == FormatoCarpeta.Anio;
+        RbAnioMes.IsChecked = _formato == FormatoCarpeta.AnioMes;
+        if (_patronCarpeta is not null)
+        {
+            CmbPatronCarpeta.Text = _patronCarpeta;
+        }
+
+        RbMantenerNombre.IsChecked = !_renombrar;
+        RbExtraerNombre.IsChecked = _renombrar;
+
+        foreach (var marca in patron.Marcas)
+        {
+            _marcas[marca.Campo] = marca;
         }
     }
 
@@ -93,6 +149,11 @@ public partial class IdentificarDocumentoWindow : Window
 
     private void GuardarBorradorActual()
     {
+        if (_edicion is not null)
+        {
+            return;
+        }
+
         var formatoElegido = RbDirecto.IsChecked == true ? FormatoCarpeta.Directo
             : RbAnio.IsChecked == true ? FormatoCarpeta.Anio
             : RbAnioMes.IsChecked == true ? FormatoCarpeta.AnioMes
@@ -169,7 +230,9 @@ public partial class IdentificarDocumentoWindow : Window
             _ => (string.Empty, string.Empty)
         };
 
-        BtnSiguiente.Content = nuevoPaso == Paso.Confirmar ? "Guardar y clasificar" : "Siguiente";
+        BtnSiguiente.Content = nuevoPaso == Paso.Confirmar
+            ? (_edicion is not null ? "Guardar cambios" : "Guardar y clasificar")
+            : "Siguiente";
     }
 
     private void BtnMarcarEmisor_Click(object sender, RoutedEventArgs e) => ArmarMarca(CampoMarca.Emisor);
@@ -362,9 +425,11 @@ public partial class IdentificarDocumentoWindow : Window
         };
         var nombreTexto = _renombrar ? "se extrae del campo marcado en el PDF" : "se mantiene el nombre original";
 
-        var encabezado = _configuracionExistente is not null
-            ? "Este documento se va a vincular a la configuración existente (se agrega como patrón de reconocimiento adicional):\n\n"
-            : string.Empty;
+        var encabezado = _edicion is not null
+            ? "Se van a actualizar las marcas y la configuración de este patrón (no se mueve ningún archivo):\n\n"
+            : _configuracionExistente is not null
+                ? "Este documento se va a vincular a la configuración existente (se agrega como patrón de reconocimiento adicional):\n\n"
+                : string.Empty;
 
         TxtResumen.Text =
             encabezado +
@@ -394,28 +459,31 @@ public partial class IdentificarDocumentoWindow : Window
                     return;
                 }
 
-                var configuracionExistente = _configuraciones.BuscarPorEmisorYTipo(_emisor, _tipo);
-                if (configuracionExistente is not null)
+                if (_edicion is null)
                 {
-                    var vincular = System.Windows.MessageBox.Show(
-                        this,
-                        $"Ya existe una configuración guardada para \"{_emisor}\" / \"{_tipo}\".\n\n" +
-                        "¿Vincular este documento a esa configuración como un patrón de reconocimiento adicional? " +
-                        "(útil si el proveedor cambió el diseño del documento). Se va a usar la misma carpeta de destino, " +
-                        "formato y regla de nombre de archivo ya definidos.",
-                        "Archivero", MessageBoxButton.YesNo, MessageBoxImage.Question);
-
-                    if (vincular != MessageBoxResult.Yes)
+                    var configuracionExistente = _configuraciones.BuscarPorEmisorYTipo(_emisor, _tipo);
+                    if (configuracionExistente is not null)
                     {
-                        MostrarError("Corregir el Emisor o el Tipo si no correspondía, o cancelar la identificación.");
-                        return;
-                    }
+                        var vincular = System.Windows.MessageBox.Show(
+                            this,
+                            $"Ya existe una configuración guardada para \"{_emisor}\" / \"{_tipo}\".\n\n" +
+                            "¿Vincular este documento a esa configuración como un patrón de reconocimiento adicional? " +
+                            "(útil si el proveedor cambió el diseño del documento). Se va a usar la misma carpeta de destino, " +
+                            "formato y regla de nombre de archivo ya definidos.",
+                            "Archivero", MessageBoxButton.YesNo, MessageBoxImage.Question);
 
-                    AplicarConfiguracionExistente(configuracionExistente);
-                }
-                else
-                {
-                    _configuracionExistente = null;
+                        if (vincular != MessageBoxResult.Yes)
+                        {
+                            MostrarError("Corregir el Emisor o el Tipo si no correspondía, o cancelar la identificación.");
+                            return;
+                        }
+
+                        AplicarConfiguracionExistente(configuracionExistente);
+                    }
+                    else
+                    {
+                        _configuracionExistente = null;
+                    }
                 }
 
                 MostrarPaso(Paso.Carpeta);
@@ -430,8 +498,15 @@ public partial class IdentificarDocumentoWindow : Window
                         return;
                     }
 
+                    // En modo edicion, si la carpeta ya precargada no cambio, no pisar el
+                    // formato/patron ya definidos con una nueva deteccion automatica.
+                    var carpetaCambio = !string.Equals(_carpetaDestino, TxtCarpetaDestino.Text, StringComparison.OrdinalIgnoreCase);
                     _carpetaDestino = TxtCarpetaDestino.Text;
-                    PrepararPasoFormato(FormatoCarpetaService.Detectar(_carpetaDestino));
+
+                    if (_edicion is null || carpetaCambio)
+                    {
+                        PrepararPasoFormato(FormatoCarpetaService.Detectar(_carpetaDestino));
+                    }
                 }
 
                 MostrarPaso(Paso.Formato);
@@ -532,6 +607,21 @@ public partial class IdentificarDocumentoWindow : Window
                 }
             }
 
+            if (_edicion is { } edicion)
+            {
+                // Modo edicion: solo se actualizan las marcas del patron y la configuracion.
+                // El PDF de ejemplo elegido para revisar/corregir no se toca ni se mueve.
+                _configuraciones.ActualizarPatron(edicion.PatronId, marcas);
+                _configuraciones.ActualizarDestino(edicion.Configuracion.Id, _carpetaDestino, _formato, _patronCarpeta, _renombrar);
+
+                System.Windows.MessageBox.Show(this, "Cambios guardados.", "Archivero",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+
+                DialogResult = true;
+                Close();
+                return;
+            }
+
             // Clasificar el archivo ANTES de guardar la configuracion: si algo falla aca
             // (fecha invalida, carpeta no disponible, nombre duplicado), no debe quedar una
             // configuracion a medias que despues choque con la restriccion de Emisor+Tipo
@@ -589,10 +679,12 @@ public partial class IdentificarDocumentoWindow : Window
 
     private void BtnCancelar_Click(object sender, RoutedEventArgs e)
     {
+        var mensaje = _edicion is not null
+            ? "¿Cancelar la edición? Se pierden los cambios sin guardar."
+            : "¿Cancelar la identificación de este documento? Se pierde lo marcado hasta ahora; el archivo sigue en pendientes.";
+
         var confirmar = System.Windows.MessageBox.Show(
-            this,
-            "¿Cancelar la identificación de este documento? Se pierde lo marcado hasta ahora; el archivo sigue en pendientes.",
-            "Archivero", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            this, mensaje, "Archivero", MessageBoxButton.YesNo, MessageBoxImage.Question);
 
         if (confirmar == MessageBoxResult.Yes)
         {

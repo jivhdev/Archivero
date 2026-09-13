@@ -153,6 +153,43 @@ public class ConfiguracionDocumentoRepository
         transaccion.Commit();
     }
 
+    /// <summary>Reemplaza todas las marcas de un patron ya existente (edicion, REQ-004).</summary>
+    public void ActualizarPatron(int patronId, List<Marca> marcas)
+    {
+        using var conexion = BaseDeDatos.CrearConexion();
+        using var transaccion = conexion.BeginTransaction();
+
+        using (var borrar = conexion.CreateCommand())
+        {
+            borrar.Transaction = transaccion;
+            borrar.CommandText = "DELETE FROM Marcas WHERE PatronId = $patronId;";
+            borrar.Parameters.AddWithValue("$patronId", patronId);
+            borrar.ExecuteNonQuery();
+        }
+
+        foreach (var marca in marcas)
+        {
+            using var insertarMarca = conexion.CreateCommand();
+            insertarMarca.Transaction = transaccion;
+            insertarMarca.CommandText =
+                """
+                INSERT INTO Marcas (PatronId, Campo, Pagina, X, Y, Ancho, Alto, TextoReferencia)
+                VALUES ($patronId, $campo, $pagina, $x, $y, $ancho, $alto, $textoReferencia);
+                """;
+            insertarMarca.Parameters.AddWithValue("$patronId", patronId);
+            insertarMarca.Parameters.AddWithValue("$campo", marca.Campo.ToString());
+            insertarMarca.Parameters.AddWithValue("$pagina", marca.Pagina);
+            insertarMarca.Parameters.AddWithValue("$x", marca.X);
+            insertarMarca.Parameters.AddWithValue("$y", marca.Y);
+            insertarMarca.Parameters.AddWithValue("$ancho", marca.Ancho);
+            insertarMarca.Parameters.AddWithValue("$alto", marca.Alto);
+            insertarMarca.Parameters.AddWithValue("$textoReferencia", (object?)marca.TextoReferencia ?? DBNull.Value);
+            insertarMarca.ExecuteNonQuery();
+        }
+
+        transaccion.Commit();
+    }
+
     private static void AgregarPatron(SqliteConnection conexion, SqliteTransaction transaccion, int configuracionId, List<Marca> marcas)
     {
         int patronId;
