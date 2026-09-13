@@ -13,10 +13,10 @@
 
 ## Siguiente paso
 - REQ-001: mergeado. ✅ Probado por Javier, funciona.
-- REQ-003 (identificar documento nuevo) implementado en la rama `feature/req-003-identificar-documento-nuevo` — **PR pendiente de abrir/probar**. Se adelantó a REQ-002 porque REQ-002 (coincidencia automática) necesita que ya existan configuraciones con patrones, y esas solo se crean con el asistente de REQ-003.
-- **Falta que Javier pruebe el asistente a mano** (es la pieza más grande y riesgosa hasta ahora — un visor de PDF con marcado a mano por arrastre — y no se pudo probar de forma interactiva desde la sesión de IA, solo se verificó que compila, que los tests automáticos pasan, y que el flujo no-interactivo — detectar un PDF nuevo y listarlo en pendientes — funciona de punta a punta).
-- REQ-003 **no está completo todavía** (a propósito, ver detalle abajo): falta el escenario "vincular a configuración existente" y el escenario "posponer" está simplificado (no persiste todavía lo ya tipeado). Antes de dar el requerimiento por cerrado hay que volver a esto.
-- Después: completar REQ-003, y recién ahí REQ-002.
+- REQ-003 (identificar documento nuevo) en la rama `feature/req-003-identificar-documento-nuevo`, PR abierto: https://github.com/jivhdev/Archivero/pull/2. Se adelantó a REQ-002 porque REQ-002 (coincidencia automática) necesita que ya existan configuraciones con patrones, y esas solo se crean con el asistente de REQ-003.
+- **Probado por Javier de punta a punta** (marcado sobre el PDF, zoom, guardar y clasificar, vincular a configuración existente) — funciona. En el camino salieron y se arreglaron varios bugs reales (ver commits de la rama): coordenadas corridas, sin preview del texto extraído, bug de guardado duplicado (UNIQUE constraint), y se pasó todo el texto de la UI a español neutro (Javier no es argentino).
+- REQ-003 **todavía no está 100% cerrado**: falta el escenario "posponer con progreso parcial guardado" (hoy: el documento no se pierde, pero no se retoma lo ya tipeado/marcado si se cierra a mitad del asistente).
+- Después: terminar ese último escenario, y recién ahí arrancar REQ-002.
 
 ### REQ-001 — qué se construyó
 - Proyecto WPF (.NET 8) creado en `src/Archivero`, solución `Archivero.sln`.
@@ -36,8 +36,10 @@
 - `MainWindow` ahora muestra la lista real de "Pendientes por reconocer"; doble clic abre el asistente.
 - Tests automáticos nuevos en `src/Archivero.Tests` (19, todos verdes): extracción por coordenadas (con PDFs reales generados en el propio test), detección/derivación de formato de carpeta, coincidencia exacta Emisor+Tipo.
 
+### REQ-003 — escenario "vincular a configuración existente"
+Implementado: si el Emisor+Tipo que se está identificando ya tiene una configuración guardada, el asistente ofrece vincular el documento actual a ella como patrón de reconocimiento adicional (en vez de intentar crear una segunda configuración, que rompía con un error de SQLite). La carpeta/formato/nombre quedan fijados por la configuración existente; igual hay que marcar Fecha y/o el campo de nombre si esa configuración los usa, porque las coordenadas son específicas del diseño de cada documento.
+
 ### REQ-003 — qué falta (no dar el requerimiento por cerrado)
-- Escenario "vincular a configuración existente" (cuando un proveedor cambia el diseño del documento): no implementado.
 - Escenario "posponer": simplificado — el documento no se pierde (sigue en pendientes), pero lo ya tipeado/marcado no se guarda todavía para retomarlo después.
 - Colisión de nombre de archivo al clasificar el documento actual: por ahora solo muestra un error simple, no las 4 opciones completas de REQ-002 (Revisar/Reemplazar/Pendiente/Excepción) — es esperable, ese flujo es explícitamente de REQ-002.
 
