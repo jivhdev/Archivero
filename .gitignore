@@ -21,3 +21,6 @@ obj/
 # Sistema operativo
 .DS_Store
 Thumbs.db
+
+# Estado interno del agente de IA (Claude Code), no es parte del proyecto
+.claude/
