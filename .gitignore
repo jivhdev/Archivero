@@ -1,0 +1,23 @@
+# .NET
+bin/
+obj/
+*.user
+
+# Base de datos local real del usuario - nunca se sube (RNF-4 de SPEC.md)
+*.db
+*.sqlite
+*.sqlite3
+
+# Visual Studio / Rider / VS Code
+.vs/
+.idea/
+.vscode/
+*.suo
+
+# Secretos
+.env
+.env.*
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
