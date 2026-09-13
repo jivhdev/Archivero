@@ -546,7 +546,7 @@ public partial class IdentificarDocumentoWindow : Window
                 FormatoCarpeta = _formato,
                 PatronCarpeta = _patronCarpeta,
                 Renombrar = _renombrar,
-                Marcas = marcas
+                Patrones = []
             };
 
             var rutaFinal = ClasificadorService.Clasificar(_rutaArchivo, configuracionParaClasificar, fecha, nombreExtraido);

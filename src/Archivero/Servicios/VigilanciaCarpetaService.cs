@@ -1,5 +1,6 @@
 using System.IO;
 using Archivero.Datos;
+using Archivero.Servicios.Pdf;
 
 namespace Archivero.Servicios;
 
@@ -7,9 +8,17 @@ public class VigilanciaCarpetaService : IDisposable
 {
     private readonly string _carpetaObservada;
     private readonly PendienteRepository _pendientes = new();
+    private readonly ConfiguracionDocumentoRepository _configuraciones = new();
     private FileSystemWatcher? _watcher;
 
+    /// <summary>Un PDF nuevo no coincide con ninguna configuración: pasa al flujo de identificación (REQ-003).</summary>
     public event Action<string>? ArchivoPendienteDetectado;
+
+    /// <summary>Un PDF se reconoció y se guardó solo en su ubicación definitiva.</summary>
+    public event Action<string, string>? ArchivoGuardadoAutomaticamente;
+
+    /// <summary>Un PDF coincidió con una configuración pero algo impidió guardarlo solo (queda pendiente, hay que avisar).</summary>
+    public event Action<string, string>? ArchivoRequiereAtencion;
 
     public VigilanciaCarpetaService(string carpetaObservada)
     {
@@ -30,6 +39,9 @@ public class VigilanciaCarpetaService : IDisposable
             NotifyFilter = NotifyFilters.FileName,
             EnableRaisingEvents = true
         };
+        // FileSystemWatcher entrega los eventos Created de a uno, en orden, en un unico hilo de
+        // fondo: como este handler es sincronico (sin async/Task.Run), los archivos se procesan
+        // de a uno y nunca en paralelo, tal como pide SPEC.md.
         _watcher.Created += (_, e) => ProcesarArchivo(e.FullPath);
     }
 
@@ -48,12 +60,66 @@ public class VigilanciaCarpetaService : IDisposable
 
     private void ProcesarArchivo(string rutaArchivo)
     {
-        // REQ-002 (coincidencia automatica contra configuraciones existentes) todavia no esta
-        // implementado: por ahora, todo PDF nuevo en la carpeta observada pasa a pendientes.
-        if (_pendientes.Agregar(rutaArchivo))
+        try
+        {
+            if (!File.Exists(rutaArchivo))
+            {
+                return;
+            }
+
+            if (!LectorPdf.TieneTextoExtraible(rutaArchivo))
+            {
+                // No es un PDF con texto plano extraible (ej. una imagen escaneada): no se
+                // procesa, el usuario lo guarda a mano (RNF-3: nunca se toca ni se mueve).
+                return;
+            }
+
+            var configuraciones = _configuraciones.ObtenerTodasConPatrones();
+            var coincidencia = CoincidenciaAutomaticaService.BuscarConfiguracionQueCoincide(rutaArchivo, configuraciones);
+
+            if (coincidencia is null)
+            {
+                AgregarAPendientes(rutaArchivo);
+                return;
+            }
+
+            var resultado = GuardadoAutomaticoService.Procesar(rutaArchivo, coincidencia);
+            switch (resultado.Resultado)
+            {
+                case ResultadoGuardadoAutomatico.Guardado:
+                    _pendientes.Quitar(rutaArchivo);
+                    ArchivoGuardadoAutomaticamente?.Invoke(rutaArchivo, resultado.RutaFinal!);
+                    break;
+
+                case ResultadoGuardadoAutomatico.ValorInvalido:
+                    AgregarAPendientes(rutaArchivo);
+                    break;
+
+                case ResultadoGuardadoAutomatico.Duplicado:
+                case ResultadoGuardadoAutomatico.CarpetaNoDisponible:
+                    if (AgregarAPendientes(rutaArchivo))
+                    {
+                        ArchivoRequiereAtencion?.Invoke(rutaArchivo, resultado.Detalle ?? resultado.Resultado.ToString());
+                    }
+                    break;
+            }
+        }
+        catch
+        {
+            // RNF-2: si el archivo esta corrupto o no se puede leer, Archivero deja de intentar
+            // con ese archivo puntual (sin tocarlo ni moverlo) y sigue observando con normalidad.
+        }
+    }
+
+    private bool AgregarAPendientes(string rutaArchivo)
+    {
+        var esNuevo = _pendientes.Agregar(rutaArchivo);
+        if (esNuevo)
         {
             ArchivoPendienteDetectado?.Invoke(rutaArchivo);
         }
+
+        return esNuevo;
     }
 
     public void Dispose()

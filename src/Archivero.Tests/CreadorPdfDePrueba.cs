@@ -6,15 +6,32 @@ internal static class CreadorPdfDePrueba
 {
     /// <summary>
     /// Crea un PDF mínimo (una página, A4) con dos líneas de texto en posiciones bien
-    /// separadas: una cerca del borde superior y otra cerca del borde inferior.
+    /// separadas: una cerca del borde superior (banda Y 0-0.3) y otra cerca del borde
+    /// inferior (banda Y 0.8-1.0).
     /// </summary>
-    public static string Crear(string carpetaDestino, string lineaSuperior, string lineaInferior)
+    public static string Crear(string carpetaDestino, string lineaSuperior, string lineaInferior) =>
+        ConstruirPdf(carpetaDestino, [(lineaSuperior, 750), (lineaInferior, 100)]);
+
+    /// <summary>
+    /// Crea un PDF mínimo (una página, A4) con varias líneas de texto, cada una en su propia
+    /// banda vertical (ver ObtenerBandaDeLinea), bien separadas entre sí.
+    /// </summary>
+    public static string CrearConLineas(string carpetaDestino, params string[] lineas) =>
+        ConstruirPdf(carpetaDestino, lineas.Select((linea, indice) => (linea, 780 - indice * 160)).ToArray());
+
+    /// <summary>
+    /// Rectángulo (fracción de página) que cubre con margen la línea de índice <paramref name="indice"/>
+    /// generada por CrearConLineas, sin superponerse con las líneas vecinas.
+    /// </summary>
+    public static Archivero.Servicios.Pdf.RectanguloFraccion ObtenerBandaDeLinea(int indice) =>
+        new(0, 0.02 + indice * 0.19, 1, 0.15);
+
+    private static string ConstruirPdf(string carpetaDestino, (string Texto, int Y)[] lineas)
     {
         var ruta = Path.Combine(carpetaDestino, $"prueba_{Guid.NewGuid():N}.pdf");
 
-        var contenido =
-            $"BT /F1 24 Tf 50 750 Td ({Escapar(lineaSuperior)}) Tj ET\n" +
-            $"BT /F1 24 Tf 50 100 Td ({Escapar(lineaInferior)}) Tj ET\n";
+        var contenido = string.Concat(lineas.Select(l =>
+            $"BT /F1 24 Tf 50 {l.Y} Td ({Escapar(l.Texto)}) Tj ET\n"));
         var contenidoBytes = Encoding.ASCII.GetBytes(contenido);
 
         using var stream = new MemoryStream();
