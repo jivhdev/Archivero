@@ -34,6 +34,7 @@ public class VigilanciaCarpetaService : IDisposable
 
     public void Iniciar()
     {
+        ReconciliarPendientesConDisco();
         RevisarArchivosExistentes();
 
         if (!Directory.Exists(_carpetaObservada))
@@ -72,6 +73,22 @@ public class VigilanciaCarpetaService : IDisposable
         if (_pendientes.Quitar(rutaArchivo))
         {
             ArchivoPendienteEliminado?.Invoke(rutaArchivo);
+        }
+    }
+
+    /// <summary>
+    /// Si un archivo se sacó de la carpeta observada mientras Archivero no estaba corriendo,
+    /// el watcher en vivo nunca se enteró: al arrancar, hay que limpiar del listado de
+    /// pendientes cualquier archivo que ya no exista en el disco.
+    /// </summary>
+    private void ReconciliarPendientesConDisco()
+    {
+        foreach (var pendiente in _pendientes.ObtenerTodos())
+        {
+            if (!File.Exists(pendiente.RutaArchivo))
+            {
+                ManejarArchivoEliminado(pendiente.RutaArchivo);
+            }
         }
     }
 
