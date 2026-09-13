@@ -20,6 +20,9 @@ public class VigilanciaCarpetaService : IDisposable
     /// <summary>Un PDF coincidió con una configuración pero algo impidió guardarlo solo (queda pendiente, hay que avisar).</summary>
     public event Action<string, string>? ArchivoRequiereAtencion;
 
+    /// <summary>La carpeta observada dejó de existir (se borró o se movió) mientras Archivero corría.</summary>
+    public event Action? CarpetaObservadaNoDisponible;
+
     public VigilanciaCarpetaService(string carpetaObservada)
     {
         _carpetaObservada = carpetaObservada;
@@ -43,6 +46,10 @@ public class VigilanciaCarpetaService : IDisposable
         // fondo: como este handler es sincronico (sin async/Task.Run), los archivos se procesan
         // de a uno y nunca en paralelo, tal como pide SPEC.md.
         _watcher.Created += (_, e) => ProcesarArchivo(e.FullPath);
+
+        // Si la carpeta observada se borra o se mueve mientras Archivero esta corriendo, el
+        // FileSystemWatcher dispara Error en vez de quedarse callado.
+        _watcher.Error += (_, _) => CarpetaObservadaNoDisponible?.Invoke();
     }
 
     private void RevisarArchivosExistentes()

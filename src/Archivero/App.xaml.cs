@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+using System.Threading;
 using System.Windows;
 using Archivero.Datos;
 using Archivero.Servicios;
@@ -7,9 +9,24 @@ namespace Archivero;
 
 public partial class App : System.Windows.Application
 {
+    private const string NombreMutexInstanciaUnica = "Archivero.InstanciaUnica";
+    private const int SW_RESTORE = 9;
+
+    private Mutex? _mutexInstanciaUnica;
+
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        _mutexInstanciaUnica = new Mutex(initiallyOwned: true, NombreMutexInstanciaUnica, out var esInstanciaNueva);
+        if (!esInstanciaNueva)
+        {
+            // Ya hay una instancia de Archivero corriendo: la segunda apertura solo enfoca
+            // la ventana de la primera (REQ-005), no abre nada nuevo.
+            EnfocarInstanciaExistente();
+            Shutdown();
+            return;
+        }
 
         BaseDeDatos.AsegurarEsquema();
 
@@ -39,4 +56,32 @@ public partial class App : System.Windows.Application
         MainWindow = ventanaPrincipal;
         ventanaPrincipal.Show();
     }
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        _mutexInstanciaUnica?.ReleaseMutex();
+        _mutexInstanciaUnica?.Dispose();
+        base.OnExit(e);
+    }
+
+    private static void EnfocarInstanciaExistente()
+    {
+        var ventana = FindWindow(null, "Archivero");
+        if (ventana == IntPtr.Zero)
+        {
+            return;
+        }
+
+        ShowWindow(ventana, SW_RESTORE);
+        SetForegroundWindow(ventana);
+    }
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern IntPtr FindWindow(string? lpClassName, string lpWindowName);
+
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
 }
