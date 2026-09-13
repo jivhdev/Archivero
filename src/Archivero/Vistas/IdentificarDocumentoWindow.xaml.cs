@@ -58,14 +58,14 @@ public partial class IdentificarDocumentoWindow : Window
         (TxtTituloPaso.Text, TxtInstruccionPaso.Text) = nuevoPaso switch
         {
             Paso.EmisorTipo => ("Paso 1 de 5 — Emisor y Tipo",
-                "Marcá sobre el PDF dónde aparecen el Emisor y el Tipo de documento, y escribilos (o elegí uno ya conocido)."),
+                "Marcar sobre el PDF dónde aparecen el Emisor y el Tipo de documento, y escribirlos (o elegir uno ya conocido)."),
             Paso.Carpeta => ("Paso 2 de 5 — Carpeta de destino",
-                "Elegí en qué carpeta se van a guardar los documentos de este Emisor y Tipo."),
+                "Elegir en qué carpeta se van a guardar los documentos de este Emisor y Tipo."),
             Paso.Formato => ("Paso 3 de 5 — Formato de subcarpetas",
-                "Confirmá o corregí cómo se organizan las subcarpetas de fecha."),
+                "Confirmar o corregir cómo se organizan las subcarpetas de fecha."),
             Paso.NombreArchivo => ("Paso 4 de 5 — Nombre de archivo",
-                "Elegí cómo se va a llamar el archivo guardado."),
-            Paso.Confirmar => ("Paso 5 de 5 — Confirmar", "Revisá los datos antes de guardar."),
+                "Elegir cómo se va a llamar el archivo guardado."),
+            Paso.Confirmar => ("Paso 5 de 5 — Confirmar", "Revisar los datos antes de guardar."),
             _ => (string.Empty, string.Empty)
         };
 
@@ -83,7 +83,32 @@ public partial class IdentificarDocumentoWindow : Window
     private void ArmarMarca(CampoMarca campo)
     {
         _campoActivoParaMarcar = campo;
-        TxtInstruccionPaso.Text = $"Dibujá un rectángulo sobre el PDF donde aparece: {NombreCampo(campo)}.";
+        TxtInstruccionPaso.Text = $"Dibujar un rectángulo sobre el PDF donde aparece: {NombreCampo(campo)}.";
+        ResaltarBotonActivo(campo);
+    }
+
+    private void ResaltarBotonActivo(CampoMarca? campoActivo)
+    {
+        var botones = new[] { BtnMarcarEmisor, BtnMarcarTipo, BtnMarcarFecha, BtnMarcarNombreArchivo };
+        var camposEnOrden = new[] { CampoMarca.Emisor, CampoMarca.Tipo, CampoMarca.Fecha, CampoMarca.NombreArchivo };
+
+        for (var i = 0; i < botones.Length; i++)
+        {
+            if (camposEnOrden[i] == campoActivo)
+            {
+                botones[i].Background = System.Windows.Media.Brushes.LightGoldenrodYellow;
+                botones[i].FontWeight = FontWeights.Bold;
+                botones[i].BorderBrush = System.Windows.Media.Brushes.DarkOrange;
+                botones[i].BorderThickness = new Thickness(2);
+            }
+            else
+            {
+                botones[i].ClearValue(BackgroundProperty);
+                botones[i].ClearValue(FontWeightProperty);
+                botones[i].ClearValue(BorderBrushProperty);
+                botones[i].ClearValue(BorderThicknessProperty);
+            }
+        }
     }
 
     private static string NombreCampo(CampoMarca campo) => campo switch
@@ -104,6 +129,7 @@ public partial class IdentificarDocumentoWindow : Window
 
         _marcas[campo] = new Marca(campo, pagina, fraccion.X, fraccion.Y, fraccion.Ancho, fraccion.Alto);
         _campoActivoParaMarcar = null;
+        ResaltarBotonActivo(null);
         ActualizarEstadosDeMarca();
         ActualizarMarcasEnVisor();
     }
@@ -133,7 +159,7 @@ public partial class IdentificarDocumentoWindow : Window
         var texto = LectorPdf.ExtraerTexto(_rutaArchivo, marca.Pagina, rect);
 
         return string.IsNullOrWhiteSpace(texto)
-            ? $"⚠ Marcado en página {marca.Pagina + 1}, pero no se pudo leer texto ahí. Probá marcar de nuevo, un poco más grande."
+            ? $"⚠ Marcado en página {marca.Pagina + 1}, pero no se pudo leer texto ahí. Probar marcar de nuevo, un poco más grande."
             : $"✅ \"{texto}\" (página {marca.Pagina + 1})";
     }
 
@@ -151,7 +177,7 @@ public partial class IdentificarDocumentoWindow : Window
     {
         using var dialogo = new FolderBrowserDialog
         {
-            Description = "Elegí la carpeta de destino para este Emisor y Tipo"
+            Description = "Elegir la carpeta de destino para este Emisor y Tipo"
         };
 
         if (dialogo.ShowDialog() == System.Windows.Forms.DialogResult.OK)
@@ -229,13 +255,13 @@ public partial class IdentificarDocumentoWindow : Window
                 _tipo = CmbTipo.Text.Trim();
                 if (string.IsNullOrWhiteSpace(_emisor) || string.IsNullOrWhiteSpace(_tipo))
                 {
-                    MostrarError("Completá el Emisor y el Tipo.");
+                    MostrarError("Completar el Emisor y el Tipo.");
                     return;
                 }
 
                 if (!_marcas.ContainsKey(CampoMarca.Emisor) || !_marcas.ContainsKey(CampoMarca.Tipo))
                 {
-                    MostrarError("Marcá el Emisor y el Tipo sobre el PDF.");
+                    MostrarError("Marcar el Emisor y el Tipo sobre el PDF.");
                     return;
                 }
 
@@ -245,7 +271,7 @@ public partial class IdentificarDocumentoWindow : Window
             case Paso.Carpeta:
                 if (string.IsNullOrWhiteSpace(TxtCarpetaDestino.Text))
                 {
-                    MostrarError("Elegí una carpeta de destino.");
+                    MostrarError("Elegir una carpeta de destino.");
                     return;
                 }
 
@@ -257,7 +283,7 @@ public partial class IdentificarDocumentoWindow : Window
             case Paso.Formato:
                 if (RbDirecto.IsChecked != true && RbAnio.IsChecked != true && RbAnioMes.IsChecked != true)
                 {
-                    MostrarError("Elegí un formato de carpeta.");
+                    MostrarError("Elegir un formato de carpeta.");
                     return;
                 }
 
@@ -274,13 +300,13 @@ public partial class IdentificarDocumentoWindow : Window
                     _patronCarpeta = CmbPatronCarpeta.Text.Trim();
                     if (string.IsNullOrWhiteSpace(_patronCarpeta))
                     {
-                        MostrarError("Definí el patrón de la subcarpeta (por ejemplo: yyyy).");
+                        MostrarError("Definir el patrón de la subcarpeta (por ejemplo: yyyy).");
                         return;
                     }
 
                     if (!_marcas.ContainsKey(CampoMarca.Fecha))
                     {
-                        MostrarError("Marcá dónde aparece la fecha en el PDF.");
+                        MostrarError("Marcar dónde aparece la fecha en el PDF.");
                         return;
                     }
                 }
@@ -291,14 +317,14 @@ public partial class IdentificarDocumentoWindow : Window
             case Paso.NombreArchivo:
                 if (RbMantenerNombre.IsChecked != true && RbExtraerNombre.IsChecked != true)
                 {
-                    MostrarError("Elegí cómo se va a llamar el archivo.");
+                    MostrarError("Elegir cómo se va a llamar el archivo.");
                     return;
                 }
 
                 _renombrar = RbExtraerNombre.IsChecked == true;
                 if (_renombrar && !_marcas.ContainsKey(CampoMarca.NombreArchivo))
                 {
-                    MostrarError("Marcá en el PDF el campo que se va a usar como nombre de archivo.");
+                    MostrarError("Marcar en el PDF el campo que se va a usar como nombre de archivo.");
                     return;
                 }
 
@@ -318,8 +344,6 @@ public partial class IdentificarDocumentoWindow : Window
         {
             var marcas = _marcas.Values.ToList();
 
-            _configuraciones.GuardarNueva(_emisor, _tipo, _carpetaDestino, _formato, _patronCarpeta, _renombrar, marcas);
-
             DateTime? fecha = null;
             if (_marcas.TryGetValue(CampoMarca.Fecha, out var marcaFecha))
             {
@@ -327,9 +351,9 @@ public partial class IdentificarDocumentoWindow : Window
                     _rutaArchivo, marcaFecha.Pagina,
                     new RectanguloFraccion(marcaFecha.X, marcaFecha.Y, marcaFecha.Ancho, marcaFecha.Alto));
 
-                if (!DateTime.TryParse(textoFecha, CultureInfo.GetCultureInfo("es-AR"), DateTimeStyles.None, out var fechaParseada))
+                if (!DateTime.TryParse(textoFecha, CultureInfo.GetCultureInfo("es-ES"), DateTimeStyles.None, out var fechaParseada))
                 {
-                    MostrarError($"No se pudo interpretar la fecha extraída (\"{textoFecha}\"). Revisá la marca sobre el PDF.");
+                    MostrarError($"No se pudo interpretar la fecha extraída (\"{textoFecha}\"). Revisar la marca sobre el PDF.");
                     return;
                 }
 
@@ -350,9 +374,24 @@ public partial class IdentificarDocumentoWindow : Window
                 }
             }
 
-            var configuracion = _configuraciones.BuscarPorEmisorYTipo(_emisor, _tipo)!;
-            var rutaFinal = ClasificadorService.Clasificar(_rutaArchivo, configuracion, fecha, nombreExtraido);
+            // Clasificar el archivo ANTES de guardar la configuracion: si algo falla aca
+            // (fecha invalida, carpeta no disponible, nombre duplicado), no debe quedar una
+            // configuracion a medias que despues choque con la restriccion de Emisor+Tipo
+            // unico al reintentar.
+            var configuracionProvisoria = new ConfiguracionDocumento
+            {
+                Emisor = _emisor,
+                Tipo = _tipo,
+                CarpetaDestino = _carpetaDestino,
+                FormatoCarpeta = _formato,
+                PatronCarpeta = _patronCarpeta,
+                Renombrar = _renombrar,
+                Marcas = marcas
+            };
 
+            var rutaFinal = ClasificadorService.Clasificar(_rutaArchivo, configuracionProvisoria, fecha, nombreExtraido);
+
+            _configuraciones.GuardarNueva(_emisor, _tipo, _carpetaDestino, _formato, _patronCarpeta, _renombrar, marcas);
             _pendientes.Quitar(_rutaArchivo);
 
             System.Windows.MessageBox.Show(

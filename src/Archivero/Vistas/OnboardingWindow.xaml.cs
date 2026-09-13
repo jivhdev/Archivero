@@ -36,7 +36,7 @@ public partial class OnboardingWindow : Window
         using var dialogo = new FolderBrowserDialog
         {
             SelectedPath = TxtUbicacion.Text,
-            Description = "Elegí dónde va a vivir la carpeta de Archivero"
+            Description = "Elegir dónde va a vivir la carpeta de Archivero"
         };
 
         if (dialogo.ShowDialog() == System.Windows.Forms.DialogResult.OK)
@@ -53,7 +53,7 @@ public partial class OnboardingWindow : Window
 
         if (string.IsNullOrWhiteSpace(nombre) || string.IsNullOrWhiteSpace(ubicacion))
         {
-            MostrarError("Completá el nombre y la ubicación de la carpeta.");
+            MostrarError("Completar el nombre y la ubicación de la carpeta.");
             return;
         }
 

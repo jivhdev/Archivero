@@ -6,7 +6,7 @@ namespace Archivero.Servicios;
 public class CarpetaYaExisteException : Exception
 {
     public CarpetaYaExisteException(string ruta)
-        : base($"Ya existe una carpeta en \"{ruta}\". Elegí otro nombre u otra ubicación.")
+        : base($"Ya existe una carpeta en \"{ruta}\". Elegir otro nombre u otra ubicación.")
     {
     }
 }

@@ -33,6 +33,23 @@ public partial class VisorPdfConMarcado : UserControl
     public VisorPdfConMarcado()
     {
         InitializeComponent();
+        ActualizarTextoZoom();
+    }
+
+    private void SliderZoom_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        var escala = e.NewValue / 100.0;
+        EscalaZoom.ScaleX = escala;
+        EscalaZoom.ScaleY = escala;
+        ActualizarTextoZoom();
+    }
+
+    private void ActualizarTextoZoom()
+    {
+        if (TxtZoom is not null)
+        {
+            TxtZoom.Text = $"{SliderZoom.Value:0}%";
+        }
     }
 
     public void CargarPdf(string rutaPdf)
