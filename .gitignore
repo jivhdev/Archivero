@@ -3,6 +3,10 @@ bin/
 obj/
 *.user
 
+# Ejecutable autocontenido publicado (se genera con "dotnet publish", ~160MB — supera el
+# limite de tamaño de archivo de GitHub, nunca se sube). Ver GIT.md para regenerarlo.
+publish/
+
 # Base de datos local real del usuario - nunca se sube (RNF-4 de SPEC.md)
 *.db
 *.sqlite
