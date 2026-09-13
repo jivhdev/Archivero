@@ -47,4 +47,10 @@ public partial class MainWindow : Window
 
         CargarPendientes();
     }
+
+    private void BtnAdministrarClasificaciones_Click(object sender, RoutedEventArgs e)
+    {
+        var ventana = new AdministrarClasificacionesWindow { Owner = this };
+        ventana.ShowDialog();
+    }
 }

@@ -86,6 +86,37 @@ public class ConfiguracionDocumentoRepositoryTests : IDisposable
         Assert.Equal(2, configuracion!.Patrones.Count);
     }
 
+    [Fact]
+    public void ActualizarDestino_CambiaCarpetaFormatoYRenombrar_SinTocarElEmisorNiElTipo()
+    {
+        var repo = new ConfiguracionDocumentoRepository();
+        var configuracionId = repo.GuardarNueva(
+            "Banco Galicia", "Resumen de cuenta", @"C:\Destino", FormatoCarpeta.Directo, null, false,
+            [new Marca(CampoMarca.Emisor, 0, 0.1, 0.1, 0.2, 0.05), new Marca(CampoMarca.Tipo, 0, 0.1, 0.2, 0.2, 0.05)]);
+
+        repo.ActualizarDestino(configuracionId, @"C:\OtroDestino", FormatoCarpeta.Anio, "yyyy", true);
+
+        var configuracion = repo.BuscarPorEmisorYTipo("Banco Galicia", "Resumen de cuenta");
+
+        Assert.NotNull(configuracion);
+        Assert.Equal(@"C:\OtroDestino", configuracion!.CarpetaDestino);
+        Assert.Equal(FormatoCarpeta.Anio, configuracion.FormatoCarpeta);
+        Assert.Equal("yyyy", configuracion.PatronCarpeta);
+        Assert.True(configuracion.Renombrar);
+    }
+
+    [Fact]
+    public void ObtenerTodas_DevuelveTodasLasConfiguracionesGuardadas()
+    {
+        var repo = new ConfiguracionDocumentoRepository();
+        repo.GuardarNueva("Banco Galicia", "Resumen de cuenta", @"C:\Destino1", FormatoCarpeta.Directo, null, false, []);
+        repo.GuardarNueva("Banco Nacion", "Factura", @"C:\Destino2", FormatoCarpeta.Directo, null, false, []);
+
+        var todas = repo.ObtenerTodas();
+
+        Assert.Equal(2, todas.Count);
+    }
+
     public void Dispose()
     {
         // Microsoft.Data.Sqlite reutiliza handles nativos por cadena de conexion (pooling);

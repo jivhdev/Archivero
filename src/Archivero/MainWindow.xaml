@@ -11,7 +11,10 @@
             <RowDefinition Height="160"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" FontSize="16" FontWeight="Bold" Text="Archivero" Margin="0,0,0,4"/>
+        <DockPanel Grid.Row="0" Margin="0,0,0,4">
+            <Button DockPanel.Dock="Right" Content="Administrar clasificaciones" Padding="8,4" Click="BtnAdministrarClasificaciones_Click"/>
+            <TextBlock FontSize="16" FontWeight="Bold" Text="Archivero" VerticalAlignment="Center"/>
+        </DockPanel>
         <TextBlock Grid.Row="1" Name="TxtCarpetaObservada" Foreground="Gray" Margin="0,0,0,16" TextWrapping="Wrap"/>
 
         <Grid Grid.Row="2" Margin="0,0,0,16">

@@ -1,0 +1,52 @@
+<Window x:Class="Archivero.Vistas.EditarConfiguracionWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Archivero — Editar clasificación"
+        Height="460" Width="460"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Name="TxtEncabezado" FontSize="14" FontWeight="Bold" Margin="0,0,0,4" TextWrapping="Wrap"/>
+        <TextBlock Grid.Row="1" Foreground="Gray" Margin="0,0,0,16" TextWrapping="Wrap"
+                   Text="El cambio aplica solo a los próximos documentos de este Emisor y Tipo — nunca reclasifica archivos ya guardados."/>
+
+        <TextBlock Grid.Row="2" Text="Carpeta de destino" FontWeight="Bold"/>
+        <DockPanel Grid.Row="3" Margin="0,4,0,16">
+            <Button DockPanel.Dock="Right" Content="Cambiar…" Padding="8,2" Click="BtnCambiarCarpeta_Click"/>
+            <TextBox Name="TxtCarpetaDestino" IsReadOnly="True" Margin="0,0,8,0"/>
+        </DockPanel>
+
+        <StackPanel Grid.Row="4">
+            <TextBlock Text="Formato de subcarpetas" FontWeight="Bold" Margin="0,0,0,8"/>
+            <RadioButton Name="RbDirecto" Content="Directo en la carpeta (sin subcarpetas)" Margin="0,0,0,6" Checked="OpcionFormato_Changed"/>
+            <RadioButton Name="RbAnio" Content="Por año" Margin="0,0,0,6" Checked="OpcionFormato_Changed"/>
+            <RadioButton Name="RbAnioMes" Content="Por año y mes" Margin="0,0,0,6" Checked="OpcionFormato_Changed"/>
+
+            <StackPanel Name="PanelPatronCarpeta" Margin="0,4,0,16" Visibility="Collapsed">
+                <TextBlock Text="Patrón de la subcarpeta (ej. yyyy o yyyy\MM):"/>
+                <ComboBox Name="CmbPatronCarpeta" IsEditable="True" Margin="0,4,0,0"/>
+            </StackPanel>
+
+            <TextBlock Text="Nombre de archivo" FontWeight="Bold" Margin="0,0,0,8"/>
+            <RadioButton Name="RbMantenerNombre" Content="Mantener el nombre original" Margin="0,0,0,6"/>
+            <RadioButton Name="RbExtraerNombre" Content="Extraer de la coordenada ya marcada" Margin="0,0,0,6"/>
+        </StackPanel>
+
+        <TextBlock Grid.Row="5" Name="TxtAviso" Foreground="Gray" TextWrapping="Wrap" Margin="0,8,0,0"/>
+
+        <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Content="Cancelar" Width="90" Margin="0,0,8,0" Padding="6,6" Click="BtnCancelar_Click"/>
+            <Button Content="Guardar" Width="90" Padding="6,6" IsDefault="True" Click="BtnGuardar_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>
