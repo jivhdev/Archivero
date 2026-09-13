@@ -13,9 +13,10 @@
 
 ## Siguiente paso
 - REQ-001: mergeado. ✅ Probado por Javier, funciona.
-- REQ-003 (identificar documento nuevo): **mergeado a main.** ✅ Los 3 escenarios de SPEC.md probados por Javier y funcionando (crear configuración nueva, vincular a una existente, posponer con progreso guardado). Se adelantó a REQ-002 porque REQ-002 necesitaba que ya existieran configuraciones con patrones.
-- REQ-002 (guardado automático de un documento ya identificado) en la rama `feature/req-002-guardado-automatico`, PR abierto: https://github.com/jivhdev/Archivero/pull/3. **Todavía sin probar a mano** — es la primera vez que se puede probar el modo automático real (necesita al menos una configuración ya guardada de REQ-003, y un segundo documento del mismo Emisor+Tipo). Ver el PR para el plan de prueba exacto.
-- Después de que Javier lo confirme, mergear y seguir con REQ-004 (administrar clasificaciones existentes) o REQ-005 (carcasa/bandeja), a definir cuál primero.
+- REQ-003 (identificar documento nuevo): mergeado. ✅ Los 3 escenarios probados por Javier y funcionando.
+- REQ-002 (guardado automático): mergeado. ✅ Probado por Javier con un caso real (incluyó un bug real de diseño: la coincidencia comparaba contra el nombre de la entidad en vez del texto efectivamente marcado — arreglado, ver sección REQ-002 más abajo).
+- REQ-004 (administrar clasificaciones existentes) en la rama `feature/req-004-administrar-clasificaciones`, PR abierto: https://github.com/jivhdev/Archivero/pull/4. **Todavía sin probar a mano.**
+- Después de que Javier lo confirme: falta REQ-005 (carcasa — bandeja del sistema, minimizar en vez de cerrar, instancia única, ícono que avisa pendientes). Es el último requerimiento funcional de `SPEC.md`.
 
 ### REQ-001 — qué se construyó
 - Proyecto WPF (.NET 8) creado en `src/Archivero`, solución `Archivero.sln`.
@@ -54,6 +55,18 @@ Implementado: tabla `Borradores` (`Datos/BorradorRepository.cs`), clave = ruta d
 
 ### REQ-002 — qué queda fuera a propósito (no es un defecto)
 - Colisión de nombre de archivo: hoy solo evita sobreescribir (manda a pendientes). Faltan las 4 opciones completas de SPEC.md (Revisar lado a lado / Reemplazar / Dejar pendiente / Guardar como excepción) — es una pieza de UI aparte, no bloquea el resto de REQ-002.
+
+### REQ-002 — bug real encontrado por Javier y arreglado: coincidencia contra el texto marcado, no contra el nombre
+Caso real: el nombre del Emisor no siempre es texto extraíble (a veces es un logo/imagen). La única forma de identificar el documento con certeza es marcar otro campo confiable (ej. el RUT) mientras se sigue escribiendo el nombre real a mano para mostrar/organizar. La coincidencia automática original comparaba el texto extraído contra el NOMBRE tipeado, no contra lo que esa coordenada realmente contiene — nunca iba a reconocer nada si el campo marcado no era literalmente el nombre.
+
+Fix: se agregó `Marca.TextoReferencia` (texto extraído en el momento de crear la marca); la coincidencia automática compara contra este valor, no contra el nombre de la entidad (con fallback al comportamiento viejo si una marca no tiene el dato, para no romper configuraciones creadas antes del fix — igual hay que re-vincular esas para que el fix las alcance). Incluye migración mínima de esquema (`ALTER TABLE ... ADD COLUMN` si falta, sin perder datos). Ver `Servicios/CoincidenciaAutomaticaService.cs` y memoria `feedback-coincidencia-contra-texto-marcado`.
+
+### REQ-004 — qué se construyó
+- **"Administrar clasificaciones"** (botón en `MainWindow`): lista todas las configuraciones (Emisor, Tipo, carpeta destino, disponibilidad), buscador con autocompletado (`Vistas/AdministrarClasificacionesWindow`).
+- **"Revisar disponibilidad"**: chequea `Directory.Exists` de cada carpeta destino, solo al abrir o al tocar el botón (sin polling en background, como pide SPEC.md).
+- **Editar** (`Vistas/EditarConfiguracionWindow`): carpeta destino, formato/patrón de subcarpetas, renombrar o no. No toca Emisor/Tipo ni las coordenadas marcadas (no hay documento de referencia en este flujo). Las opciones de fecha/nombre se deshabilitan si ningún patrón tiene esa marca. Aplica solo hacia adelante — `ActualizarDestino` solo hace `UPDATE`, nunca reclasifica archivos ya guardados.
+- **Exportar/respaldar**: vuelca todas las configuraciones+patrones a un JSON, en un botón secundario de la ventana (no en la pantalla principal).
+- Tests nuevos: `ActualizarDestino`, `ObtenerTodas` (34 tests en total).
 
 ### Nota sobre la sincronización automática del vault
 Hay un proceso en background (mencionado en `AGENTS.md`) que hace commits automáticos ("Sync automatico: ...") a este repo con la identidad de Javier, incluso a mitad de una sesión de trabajo. No es un problema — solo hace que a veces aparezca un commit intermedio con código a medio terminar en el historial. Ya pasó una vez que agarró un archivo interno del harness (`.claude/scheduled_tasks.lock`), que se sacó y se agregó a `.gitignore`.
