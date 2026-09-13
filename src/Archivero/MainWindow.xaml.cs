@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Input;
 using Archivero.Datos;
@@ -18,6 +19,8 @@ public partial class MainWindow : Window
 
         _vigilancia = vigilancia;
         _vigilancia.ArchivoPendienteDetectado += _ => Dispatcher.Invoke(CargarPendientes);
+        _vigilancia.ArchivoRequiereAtencion += (_, _) => Dispatcher.Invoke(CargarPendientes);
+        _vigilancia.ArchivoGuardadoAutomaticamente += (_, rutaFinal) => Dispatcher.Invoke(() => AgregarAGuardadosRecientes(rutaFinal));
 
         CargarPendientes();
     }
@@ -25,6 +28,11 @@ public partial class MainWindow : Window
     private void CargarPendientes()
     {
         ListaPendientes.ItemsSource = _pendientes.ObtenerTodos();
+    }
+
+    private void AgregarAGuardadosRecientes(string rutaFinal)
+    {
+        ListaGuardados.Items.Insert(0, $"{DateTime.Now:HH:mm:ss} — {Path.GetFileName(rutaFinal)} → {rutaFinal}");
     }
 
     private void ListaPendientes_MouseDoubleClick(object sender, MouseButtonEventArgs e)

@@ -34,7 +34,33 @@ public class ConfiguracionDocumentoRepository
         var configuracion = LeerConfiguracion(lector);
         lector.Close();
 
-        return configuracion with { Marcas = ObtenerMarcas(conexion, configuracionId) };
+        return configuracion with { Patrones = ObtenerPatrones(conexion, configuracionId) };
+    }
+
+    public List<ConfiguracionDocumento> ObtenerTodasConPatrones()
+    {
+        using var conexion = BaseDeDatos.CrearConexion();
+        using var comando = conexion.CreateCommand();
+        comando.CommandText =
+            """
+            SELECT c.Id, ce.Nombre, ct.Nombre, c.CarpetaDestino, c.FormatoCarpeta, c.PatronCarpeta, c.Renombrar
+            FROM Configuraciones c
+            JOIN EntidadesConocidas ce ON ce.Id = c.EmisorId
+            JOIN EntidadesConocidas ct ON ct.Id = c.TipoId;
+            """;
+
+        var configuraciones = new List<ConfiguracionDocumento>();
+        using (var lector = comando.ExecuteReader())
+        {
+            while (lector.Read())
+            {
+                configuraciones.Add(LeerConfiguracion(lector));
+            }
+        }
+
+        return configuraciones
+            .Select(c => c with { Patrones = ObtenerPatrones(conexion, c.Id) })
+            .ToList();
     }
 
     public int GuardarNueva(
@@ -107,8 +133,8 @@ public class ConfiguracionDocumentoRepository
             insertarMarca.Transaction = transaccion;
             insertarMarca.CommandText =
                 """
-                INSERT INTO Marcas (PatronId, Campo, Pagina, X, Y, Ancho, Alto)
-                VALUES ($patronId, $campo, $pagina, $x, $y, $ancho, $alto);
+                INSERT INTO Marcas (PatronId, Campo, Pagina, X, Y, Ancho, Alto, TextoReferencia)
+                VALUES ($patronId, $campo, $pagina, $x, $y, $ancho, $alto, $textoReferencia);
                 """;
             insertarMarca.Parameters.AddWithValue("$patronId", patronId);
             insertarMarca.Parameters.AddWithValue("$campo", marca.Campo.ToString());
@@ -117,6 +143,7 @@ public class ConfiguracionDocumentoRepository
             insertarMarca.Parameters.AddWithValue("$y", marca.Y);
             insertarMarca.Parameters.AddWithValue("$ancho", marca.Ancho);
             insertarMarca.Parameters.AddWithValue("$alto", marca.Alto);
+            insertarMarca.Parameters.AddWithValue("$textoReferencia", (object?)marca.TextoReferencia ?? DBNull.Value);
             insertarMarca.ExecuteNonQuery();
         }
     }
@@ -146,34 +173,43 @@ public class ConfiguracionDocumentoRepository
         FormatoCarpeta = Enum.Parse<FormatoCarpeta>(lector.GetString(4)),
         PatronCarpeta = lector.IsDBNull(5) ? null : lector.GetString(5),
         Renombrar = lector.GetInt32(6) != 0,
-        Marcas = []
+        Patrones = []
     };
 
-    private static List<Marca> ObtenerMarcas(SqliteConnection conexion, int configuracionId)
+    private static List<PatronReconocimiento> ObtenerPatrones(SqliteConnection conexion, int configuracionId)
     {
         using var comando = conexion.CreateCommand();
         comando.CommandText =
             """
-            SELECT m.Campo, m.Pagina, m.X, m.Y, m.Ancho, m.Alto
+            SELECT m.PatronId, m.Campo, m.Pagina, m.X, m.Y, m.Ancho, m.Alto, m.TextoReferencia
             FROM Marcas m
             JOIN PatronesReconocimiento p ON p.Id = m.PatronId
-            WHERE p.ConfiguracionId = $configuracionId;
+            WHERE p.ConfiguracionId = $configuracionId
+            ORDER BY m.PatronId;
             """;
         comando.Parameters.AddWithValue("$configuracionId", configuracionId);
 
-        var resultado = new List<Marca>();
+        var patrones = new Dictionary<int, List<Marca>>();
         using var lector = comando.ExecuteReader();
         while (lector.Read())
         {
-            resultado.Add(new Marca(
-                Enum.Parse<CampoMarca>(lector.GetString(0)),
-                lector.GetInt32(1),
-                lector.GetDouble(2),
+            var patronId = lector.GetInt32(0);
+            if (!patrones.TryGetValue(patronId, out var marcas))
+            {
+                marcas = [];
+                patrones[patronId] = marcas;
+            }
+
+            marcas.Add(new Marca(
+                Enum.Parse<CampoMarca>(lector.GetString(1)),
+                lector.GetInt32(2),
                 lector.GetDouble(3),
                 lector.GetDouble(4),
-                lector.GetDouble(5)));
+                lector.GetDouble(5),
+                lector.GetDouble(6),
+                lector.IsDBNull(7) ? null : lector.GetString(7)));
         }
 
-        return resultado;
+        return patrones.Select(p => new PatronReconocimiento(p.Key, p.Value)).ToList();
     }
 }

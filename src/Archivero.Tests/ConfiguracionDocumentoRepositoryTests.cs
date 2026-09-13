@@ -49,7 +49,7 @@ public class ConfiguracionDocumentoRepositoryTests : IDisposable
     }
 
     [Fact]
-    public void BuscarPorEmisorYTipo_DevuelveLasMarcasGuardadas()
+    public void BuscarPorEmisorYTipo_DevuelveElPatronConLasMarcasGuardadas()
     {
         var repo = new ConfiguracionDocumentoRepository();
         var marcas = new List<Marca>
@@ -62,9 +62,28 @@ public class ConfiguracionDocumentoRepositoryTests : IDisposable
         var configuracion = repo.BuscarPorEmisorYTipo("Banco Galicia", "Resumen de cuenta");
 
         Assert.NotNull(configuracion);
-        Assert.Equal(2, configuracion!.Marcas.Count);
-        Assert.Contains(configuracion.Marcas, m => m.Campo == CampoMarca.Emisor);
-        Assert.Contains(configuracion.Marcas, m => m.Campo == CampoMarca.Tipo);
+        var patron = Assert.Single(configuracion!.Patrones);
+        Assert.Equal(2, patron.Marcas.Count);
+        Assert.Contains(patron.Marcas, m => m.Campo == CampoMarca.Emisor);
+        Assert.Contains(patron.Marcas, m => m.Campo == CampoMarca.Tipo);
+    }
+
+    [Fact]
+    public void AgregarPatronAConfiguracionExistente_SumaUnSegundoPatron()
+    {
+        var repo = new ConfiguracionDocumentoRepository();
+        var configuracionId = repo.GuardarNueva(
+            "Banco Galicia", "Resumen de cuenta", @"C:\Destino", FormatoCarpeta.Directo, null, false,
+            [new Marca(CampoMarca.Emisor, 0, 0.1, 0.1, 0.2, 0.05), new Marca(CampoMarca.Tipo, 0, 0.1, 0.2, 0.2, 0.05)]);
+
+        repo.AgregarPatronAConfiguracionExistente(
+            configuracionId,
+            [new Marca(CampoMarca.Emisor, 0, 0.3, 0.3, 0.2, 0.05), new Marca(CampoMarca.Tipo, 0, 0.3, 0.4, 0.2, 0.05)]);
+
+        var configuracion = repo.BuscarPorEmisorYTipo("Banco Galicia", "Resumen de cuenta");
+
+        Assert.NotNull(configuracion);
+        Assert.Equal(2, configuracion!.Patrones.Count);
     }
 
     public void Dispose()
