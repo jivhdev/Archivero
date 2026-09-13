@@ -32,7 +32,10 @@ public partial class App : System.Windows.Application
             carpetaObservada = onboarding.CarpetaCreada;
         }
 
-        var ventanaPrincipal = new MainWindow(carpetaObservada);
+        var vigilancia = new VigilanciaCarpetaService(carpetaObservada);
+        vigilancia.Iniciar();
+
+        var ventanaPrincipal = new MainWindow(carpetaObservada, vigilancia);
         MainWindow = ventanaPrincipal;
         ventanaPrincipal.Show();
     }
