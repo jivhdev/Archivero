@@ -37,6 +37,47 @@ public class ConfiguracionDocumentoRepository
         return configuracion with { Patrones = ObtenerPatrones(conexion, configuracionId) };
     }
 
+    public List<ConfiguracionDocumento> ObtenerTodas()
+    {
+        using var conexion = BaseDeDatos.CrearConexion();
+        using var comando = conexion.CreateCommand();
+        comando.CommandText =
+            """
+            SELECT c.Id, ce.Nombre, ct.Nombre, c.CarpetaDestino, c.FormatoCarpeta, c.PatronCarpeta, c.Renombrar
+            FROM Configuraciones c
+            JOIN EntidadesConocidas ce ON ce.Id = c.EmisorId
+            JOIN EntidadesConocidas ct ON ct.Id = c.TipoId
+            ORDER BY ce.Nombre, ct.Nombre;
+            """;
+
+        var resultado = new List<ConfiguracionDocumento>();
+        using var lector = comando.ExecuteReader();
+        while (lector.Read())
+        {
+            resultado.Add(LeerConfiguracion(lector));
+        }
+
+        return resultado;
+    }
+
+    public void ActualizarDestino(int configuracionId, string carpetaDestino, FormatoCarpeta formatoCarpeta, string? patronCarpeta, bool renombrar)
+    {
+        using var conexion = BaseDeDatos.CrearConexion();
+        using var comando = conexion.CreateCommand();
+        comando.CommandText =
+            """
+            UPDATE Configuraciones
+            SET CarpetaDestino = $carpetaDestino, FormatoCarpeta = $formato, PatronCarpeta = $patron, Renombrar = $renombrar
+            WHERE Id = $id;
+            """;
+        comando.Parameters.AddWithValue("$carpetaDestino", carpetaDestino);
+        comando.Parameters.AddWithValue("$formato", formatoCarpeta.ToString());
+        comando.Parameters.AddWithValue("$patron", (object?)patronCarpeta ?? DBNull.Value);
+        comando.Parameters.AddWithValue("$renombrar", renombrar ? 1 : 0);
+        comando.Parameters.AddWithValue("$id", configuracionId);
+        comando.ExecuteNonQuery();
+    }
+
     public List<ConfiguracionDocumento> ObtenerTodasConPatrones()
     {
         using var conexion = BaseDeDatos.CrearConexion();
@@ -109,6 +150,43 @@ public class ConfiguracionDocumentoRepository
         using var conexion = BaseDeDatos.CrearConexion();
         using var transaccion = conexion.BeginTransaction();
         AgregarPatron(conexion, transaccion, configuracionId, marcas);
+        transaccion.Commit();
+    }
+
+    /// <summary>Reemplaza todas las marcas de un patron ya existente (edicion, REQ-004).</summary>
+    public void ActualizarPatron(int patronId, List<Marca> marcas)
+    {
+        using var conexion = BaseDeDatos.CrearConexion();
+        using var transaccion = conexion.BeginTransaction();
+
+        using (var borrar = conexion.CreateCommand())
+        {
+            borrar.Transaction = transaccion;
+            borrar.CommandText = "DELETE FROM Marcas WHERE PatronId = $patronId;";
+            borrar.Parameters.AddWithValue("$patronId", patronId);
+            borrar.ExecuteNonQuery();
+        }
+
+        foreach (var marca in marcas)
+        {
+            using var insertarMarca = conexion.CreateCommand();
+            insertarMarca.Transaction = transaccion;
+            insertarMarca.CommandText =
+                """
+                INSERT INTO Marcas (PatronId, Campo, Pagina, X, Y, Ancho, Alto, TextoReferencia)
+                VALUES ($patronId, $campo, $pagina, $x, $y, $ancho, $alto, $textoReferencia);
+                """;
+            insertarMarca.Parameters.AddWithValue("$patronId", patronId);
+            insertarMarca.Parameters.AddWithValue("$campo", marca.Campo.ToString());
+            insertarMarca.Parameters.AddWithValue("$pagina", marca.Pagina);
+            insertarMarca.Parameters.AddWithValue("$x", marca.X);
+            insertarMarca.Parameters.AddWithValue("$y", marca.Y);
+            insertarMarca.Parameters.AddWithValue("$ancho", marca.Ancho);
+            insertarMarca.Parameters.AddWithValue("$alto", marca.Alto);
+            insertarMarca.Parameters.AddWithValue("$textoReferencia", (object?)marca.TextoReferencia ?? DBNull.Value);
+            insertarMarca.ExecuteNonQuery();
+        }
+
         transaccion.Commit();
     }
 

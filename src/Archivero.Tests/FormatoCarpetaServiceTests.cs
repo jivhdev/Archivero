@@ -61,6 +61,19 @@ public class FormatoCarpetaServiceTests : IDisposable
     }
 
     [Fact]
+    public void Detectar_ConSubcarpetasDeMesEnFormatoAnioMesConcatenado_DevuelvePatronYyyyMM()
+    {
+        var carpetaAnio = Path.Combine(_carpetaTemporal, "2026");
+        Directory.CreateDirectory(Path.Combine(carpetaAnio, "202601"));
+        Directory.CreateDirectory(Path.Combine(carpetaAnio, "202602"));
+
+        var resultado = FormatoCarpetaService.Detectar(_carpetaTemporal);
+
+        Assert.Equal(FormatoCarpeta.AnioMes, resultado.Formato);
+        Assert.Equal("yyyy\\yyyyMM", resultado.PatronCarpeta);
+    }
+
+    [Fact]
     public void Detectar_ConSubcarpetasQueNoSonFechas_DevuelveDirecto()
     {
         Directory.CreateDirectory(Path.Combine(_carpetaTemporal, "Facturas"));
@@ -87,6 +100,14 @@ public class FormatoCarpetaServiceTests : IDisposable
         var resultado = FormatoCarpetaService.ConstruirSubcarpeta(FormatoCarpeta.AnioMes, "yyyy\\MM", new DateTime(2026, 9, 12));
 
         Assert.Equal("2026\\09", resultado);
+    }
+
+    [Fact]
+    public void ConstruirSubcarpeta_ConFormatoAnioMesConcatenado_DevuelveAnioYAnioMesJuntos()
+    {
+        var resultado = FormatoCarpetaService.ConstruirSubcarpeta(FormatoCarpeta.AnioMes, "yyyy\\yyyyMM", new DateTime(2026, 9, 12));
+
+        Assert.Equal("2026\\202609", resultado);
     }
 
     [Fact]
