@@ -7,6 +7,11 @@ obj/
 # limite de tamaño de archivo de GitHub, nunca se sube). Ver GIT.md para regenerarlo.
 publish/
 
+# Carpeta de distribucion: contiene el mismo .exe autocontenido pesado (~160MB), nunca se sube.
+# Solo se versiona el estado de la distribucion, no el binario. Ver Distribucion/ESTADO-DISTRIBUCION.md.
+Distribucion/*
+!Distribucion/ESTADO-DISTRIBUCION.md
+
 # Base de datos local real del usuario - nunca se sube (RNF-4 de SPEC.md)
 *.db
 *.sqlite
