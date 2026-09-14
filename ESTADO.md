@@ -3,17 +3,35 @@
 > Se actualiza al final de cada sesión. Es lo tercero que hay que leer (después de AGENTS.md y SPEC.md) para saber dónde quedamos.
 
 ## Última sesión
-- Fecha: 2026-09-13
-- Qué se hizo:
-  - Se re-chequeó `SPEC.md` local contra `C:\MQD\01-Proyectos\Archivero\semilla-archivero\SPEC.md` a pedido de Javier — **sin diferencias** esta vez, la copia local ya estaba al día.
-  - Se mergearon a `main` los 3 PRs que habían quedado pendientes de la sesión anterior (PR #6 REQ-002 duplicados, PR #7 empaquetado, PR #8 LICENSE+ícono), sin conflictos. Se verificó que el resultado combinado compila y pasa los 63 tests automáticos.
-  - Se corrigió la sección "Decisiones abiertas" de este archivo (PR #10), que todavía daba como pendientes la licencia y la personalización visual, ya resueltas.
-  - Se creó `Distribucion/` en la raíz del repo (PR #11) con el `.exe` autocontenido regenerado y `Distribucion/ESTADO-DISTRIBUCION.md` (versionado) documentando el piloto — el binario mismo queda excluido del repo vía `.gitignore`, con la misma regla que ya protege a `publish/`.
+- Fecha: 2026-09-14
+- Qué se hizo: `preguntas/Caso-1.md` (5 hallazgos reales del piloto, resueltos en el vault — ninguno contradice `SPEC.md`, la amplían o corrigen bugs reales) implementado completo, un punto a la vez, cada uno en su rama/PR, todos mergeados a `main` sin conflictos. Ver el detalle de cada uno en la sección "Caso-1" más abajo. 75 tests automáticos en total, todos verdes, en el `main` combinado.
 
 ## Siguiente paso
-- **Los 5 requerimientos funcionales de SPEC.md (REQ-001 a REQ-005) están completos, mergeados a `main`, y probados por Javier**, incluida la resolución de duplicados de REQ-002. Varios bugs reales encontrados y arreglados en el camino (ver secciones de cada uno más abajo).
-- Empaquetado, licencia, ícono, y la carpeta `Distribucion/` para el piloto también están en `main`.
-- No queda nada pendiente conocido del alcance de `SPEC.md`. El siguiente paso es la ronda de uso real en piloto (`Distribucion/ESTADO-DISTRIBUCION.md` dice "En piloto desde 2026-09-13 — pendiente de revisión") y, más adelante, cerrar los "Open issues" que quedan (nombres finales de interfaz).
+- **Todo lo pedido en `Caso-1.md` está implementado y en `main`, pero todavía sin la verificación real a mano de Javier** (AGENTS.md pide correr la app real y probar el flujo, no solo confiar en los tests automáticos — el agente no tiene forma de hacer eso por su cuenta en una app de escritorio). Antes de dar Caso-1 por cerrado del todo, probar a mano cada punto — los pasos sugeridos están en la descripción de cada PR (#13 a #17) y resumidos abajo.
+- El `.exe` de `Distribucion/` **todavía no se regeneró** con los cambios de hoy: había una instancia de Archivero corriendo (PID activo) que bloqueaba el archivo, y no se cerró sola por las dudas de que fuera algo que Javier tenía abierto a propósito. Regenerar con el comando de `GIT.md` (o pedírselo al agente) después de cerrar esa instancia.
+- Fuera de esto, no queda nada pendiente conocido del alcance de `SPEC.md` + `Caso-1.md`. Sigue abierto, como antes, cerrar los "Open issues" que quedan (nombres finales de interfaz).
+
+## Caso-1 — 5 correcciones/ampliaciones del piloto real (2026-09-14)
+Ver `preguntas/Caso-1.md` para el texto completo de cada punto tal como lo trajo Javier del vault.
+
+### Punto 2 — detección de formato de carpeta por evidencia real, nunca por adivinanza
+El bug más grave reportado: Javier eligió la carpeta EXACTA de destino y Archivero igual creó una subcarpeta de año/mes adentro sin que nadie la pidiera. `FormatoCarpetaService.Detectar` se reescribió para comparar los nombres de subcarpetas ya existentes entre sí (evidencia real) en vez de contra una lista cerrada de formatos completos: separa la parte literal fija de la parte que varía, y prueba si esa parte variable es consistente con un token de fecha conocido — generaliza a convenciones reales con texto alrededor (ej. `"Año 2024"`), pero sigue exigiendo evidencia real y nunca inventa una subdivisión sin ella. Salvaguarda agregada: un texto candidato a "literal fijo" nunca se acepta si por sí solo parece un valor de fecha válido (evita confundir, ej., el año que se repite en las subcarpetas de mes de una única carpeta de año con texto literal).
+
+Además, se cerró el último párrafo del punto: cuando un documento nuevo coincide con una configuración ya confirmada pero la carpeta del período actual todavía no existe, Archivero ya no la crea sola en silencio — pasa a pendientes (motivo `PeriodoNuevo`) con una pantalla dedicada (`Vistas/CrearPeriodoWindow`) que ofrece crear la carpeta y guardar ahí, crear también por adelantado la del próximo período, o elegir una carpeta manualmente. El caso común (la carpeta del período ya existe) sigue siendo 100% automático y silencioso, sin cambios.
+
+PR: [#13](https://github.com/jivhdev/Archivero/pull/13) (detección) y [#14](https://github.com/jivhdev/Archivero/pull/14) (período nuevo + punto 3, comparten pantalla).
+
+### Punto 3 — preview obligatorio de carpeta anterior/actual/futura
+En el asistente de identificación, desde el paso de Formato hasta Confirmar, un recuadro fijo muestra: la carpeta **anterior** (real, ya en disco, vía `FormatoCarpetaService.BuscarCarpetaAnteriorReal`), la carpeta **actual** (ruta y nombre exactos de cómo quedaría el documento de hoy, reusando `ClasificadorService.CalcularRutaDestino`), y la carpeta **futura** (la que se crearía en el próximo período, si aplica). Se actualiza solo al cambiar formato/patrón o al marcar la fecha, y tiene un botón para refrescarlo a mano. PR: [#14](https://github.com/jivhdev/Archivero/pull/14).
+
+### Punto 1 — PDFs sin texto extraíble quedan visibles y configurables a mano
+Antes desaparecían sin dejar rastro. Ahora aparecen en pendientes (motivo `SinTextoExtraible`) con una pantalla dedicada (`Vistas/IdentificarSinTextoWindow`): Emisor y Tipo se escriben a mano (no hay texto para marcar por coordenadas), la carpeta se elige como cualquier configuración normal, y la configuración resultante queda siempre en "Directo" y sin renombrar. Los próximos documentos del mismo Emisor+Tipo se enrutan solos vía un mecanismo de coincidencia aparte (`CoincidenciaAutomaticaService.BuscarConfiguracionSinTextoQueCoincide`, busca una configuración con un "patrón sin ninguna marca"); si hay más de una así, es ambiguo y queda pendiente en vez de adivinar. De paso se corrigió un bug real en `ConfiguracionDocumentoRepository.ObtenerPatrones`: usaba un INNER JOIN desde `Marcas`, así que un patrón sin ninguna marca desaparecía al leerlo de vuelta de la base (nunca se había notado porque hasta ahora todo patrón tenía al menos Emisor y Tipo). PR: [#15](https://github.com/jivhdev/Archivero/pull/15).
+
+### Punto 4 — vista simple de un guardado, botón Atrás, y borrar configuración
+"Guardados automáticamente" es interactivo: doble click abre una vista simple (`Vistas/VerGuardadoWindow`) con "Abrir ubicación" (explorador de Windows) y "Editar configuración" — esta última toma ese mismo archivo directamente (nunca pide buscar uno parecido), lo re-reconoce en su ubicación actual y lleva al asistente derecho al paso de elegir carpeta, sin repetir Emisor/Tipo. Se agregó un botón "Atrás" al asistente (se puede retroceder un paso, nunca saltar adelante). Se agregó borrar una configuración de documento completa desde "Administrar clasificaciones" (no existía) — nunca toca archivos ya guardados en disco. PR: [#16](https://github.com/jivhdev/Archivero/pull/16).
+
+### Punto 5 — opción "abrir después de guardar"
+Reemplaza el efecto de la apertura automática que hacía PDFCreator antes de que Archivero moviera el archivo casi al instante. Nueva columna `Configuraciones.AbrirDespuesDeGuardar` (con migración); checkbox en el último paso del asistente (nunca en el medio), arranca siempre destildado. Si está activo, al guardar automáticamente un documento de ese tipo se abre en el visor de PDF por defecto del sistema. Si no se puede abrir, no afecta el resultado del guardado. PR: [#17](https://github.com/jivhdev/Archivero/pull/17).
 
 ### REQ-001 — qué se construyó
 - Proyecto WPF (.NET 8) creado en `src/Archivero`, solución `Archivero.sln`.
