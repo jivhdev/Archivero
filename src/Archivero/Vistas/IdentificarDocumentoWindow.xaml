@@ -74,7 +74,8 @@
 
             <!-- Paso 5: Confirmar -->
             <StackPanel Name="PanelConfirmar" Visibility="Collapsed">
-                <TextBlock Name="TxtResumen" TextWrapping="Wrap"/>
+                <TextBlock Name="TxtResumen" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                <CheckBox Name="ChkAbrirDespuesDeGuardar" Content="Abrir el documento después de guardarlo automáticamente" Checked="ChkAbrirDespuesDeGuardar_Changed" Unchecked="ChkAbrirDespuesDeGuardar_Changed"/>
             </StackPanel>
 
             <!-- Preview obligatorio de anterior/actual/futuro (Caso-1, punto 3). Visible desde

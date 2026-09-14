@@ -44,6 +44,7 @@ public static class BaseDeDatos
                 FormatoCarpeta TEXT NOT NULL CHECK (FormatoCarpeta IN ('Directo', 'Anio', 'AnioMes')),
                 PatronCarpeta TEXT NULL,
                 Renombrar INTEGER NOT NULL DEFAULT 0,
+                AbrirDespuesDeGuardar INTEGER NOT NULL DEFAULT 0,
                 UNIQUE (EmisorId, TipoId)
             );
 
@@ -81,6 +82,7 @@ public static class BaseDeDatos
 
         AgregarColumnaSiFalta(conexion, "Marcas", "TextoReferencia", "TEXT NULL");
         AgregarColumnaSiFalta(conexion, "Pendientes", "Motivo", "TEXT NOT NULL DEFAULT 'NuevoDocumento'");
+        AgregarColumnaSiFalta(conexion, "Configuraciones", "AbrirDespuesDeGuardar", "INTEGER NOT NULL DEFAULT 0");
     }
 
     /// <summary>

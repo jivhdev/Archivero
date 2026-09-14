@@ -15,7 +15,7 @@ public class ConfiguracionDocumentoRepository
         using var comando = conexion.CreateCommand();
         comando.CommandText =
             """
-            SELECT c.Id, ce.Nombre, ct.Nombre, c.CarpetaDestino, c.FormatoCarpeta, c.PatronCarpeta, c.Renombrar
+            SELECT c.Id, ce.Nombre, ct.Nombre, c.CarpetaDestino, c.FormatoCarpeta, c.PatronCarpeta, c.Renombrar, c.AbrirDespuesDeGuardar
             FROM Configuraciones c
             JOIN EntidadesConocidas ce ON ce.Id = c.EmisorId
             JOIN EntidadesConocidas ct ON ct.Id = c.TipoId
@@ -43,7 +43,7 @@ public class ConfiguracionDocumentoRepository
         using var comando = conexion.CreateCommand();
         comando.CommandText =
             """
-            SELECT c.Id, ce.Nombre, ct.Nombre, c.CarpetaDestino, c.FormatoCarpeta, c.PatronCarpeta, c.Renombrar
+            SELECT c.Id, ce.Nombre, ct.Nombre, c.CarpetaDestino, c.FormatoCarpeta, c.PatronCarpeta, c.Renombrar, c.AbrirDespuesDeGuardar
             FROM Configuraciones c
             JOIN EntidadesConocidas ce ON ce.Id = c.EmisorId
             JOIN EntidadesConocidas ct ON ct.Id = c.TipoId
@@ -60,20 +60,21 @@ public class ConfiguracionDocumentoRepository
         return resultado;
     }
 
-    public void ActualizarDestino(int configuracionId, string carpetaDestino, FormatoCarpeta formatoCarpeta, string? patronCarpeta, bool renombrar)
+    public void ActualizarDestino(int configuracionId, string carpetaDestino, FormatoCarpeta formatoCarpeta, string? patronCarpeta, bool renombrar, bool abrirDespuesDeGuardar)
     {
         using var conexion = BaseDeDatos.CrearConexion();
         using var comando = conexion.CreateCommand();
         comando.CommandText =
             """
             UPDATE Configuraciones
-            SET CarpetaDestino = $carpetaDestino, FormatoCarpeta = $formato, PatronCarpeta = $patron, Renombrar = $renombrar
+            SET CarpetaDestino = $carpetaDestino, FormatoCarpeta = $formato, PatronCarpeta = $patron, Renombrar = $renombrar, AbrirDespuesDeGuardar = $abrirDespuesDeGuardar
             WHERE Id = $id;
             """;
         comando.Parameters.AddWithValue("$carpetaDestino", carpetaDestino);
         comando.Parameters.AddWithValue("$formato", formatoCarpeta.ToString());
         comando.Parameters.AddWithValue("$patron", (object?)patronCarpeta ?? DBNull.Value);
         comando.Parameters.AddWithValue("$renombrar", renombrar ? 1 : 0);
+        comando.Parameters.AddWithValue("$abrirDespuesDeGuardar", abrirDespuesDeGuardar ? 1 : 0);
         comando.Parameters.AddWithValue("$id", configuracionId);
         comando.ExecuteNonQuery();
     }
@@ -84,7 +85,7 @@ public class ConfiguracionDocumentoRepository
         using var comando = conexion.CreateCommand();
         comando.CommandText =
             """
-            SELECT c.Id, ce.Nombre, ct.Nombre, c.CarpetaDestino, c.FormatoCarpeta, c.PatronCarpeta, c.Renombrar
+            SELECT c.Id, ce.Nombre, ct.Nombre, c.CarpetaDestino, c.FormatoCarpeta, c.PatronCarpeta, c.Renombrar, c.AbrirDespuesDeGuardar
             FROM Configuraciones c
             JOIN EntidadesConocidas ce ON ce.Id = c.EmisorId
             JOIN EntidadesConocidas ct ON ct.Id = c.TipoId;
@@ -111,7 +112,8 @@ public class ConfiguracionDocumentoRepository
         FormatoCarpeta formatoCarpeta,
         string? patronCarpeta,
         bool renombrar,
-        List<Marca> marcas)
+        List<Marca> marcas,
+        bool abrirDespuesDeGuardar = false)
     {
         var emisorId = _entidades.ObtenerOCrear(CategoriaEntidad.Emisor, emisor);
         var tipoId = _entidades.ObtenerOCrear(CategoriaEntidad.Tipo, tipo);
@@ -125,8 +127,8 @@ public class ConfiguracionDocumentoRepository
             insertarConfig.Transaction = transaccion;
             insertarConfig.CommandText =
                 """
-                INSERT INTO Configuraciones (EmisorId, TipoId, CarpetaDestino, FormatoCarpeta, PatronCarpeta, Renombrar)
-                VALUES ($emisorId, $tipoId, $carpetaDestino, $formato, $patron, $renombrar);
+                INSERT INTO Configuraciones (EmisorId, TipoId, CarpetaDestino, FormatoCarpeta, PatronCarpeta, Renombrar, AbrirDespuesDeGuardar)
+                VALUES ($emisorId, $tipoId, $carpetaDestino, $formato, $patron, $renombrar, $abrirDespuesDeGuardar);
                 SELECT last_insert_rowid();
                 """;
             insertarConfig.Parameters.AddWithValue("$emisorId", emisorId);
@@ -135,6 +137,7 @@ public class ConfiguracionDocumentoRepository
             insertarConfig.Parameters.AddWithValue("$formato", formatoCarpeta.ToString());
             insertarConfig.Parameters.AddWithValue("$patron", (object?)patronCarpeta ?? DBNull.Value);
             insertarConfig.Parameters.AddWithValue("$renombrar", renombrar ? 1 : 0);
+            insertarConfig.Parameters.AddWithValue("$abrirDespuesDeGuardar", abrirDespuesDeGuardar ? 1 : 0);
 
             configuracionId = (int)(long)insertarConfig.ExecuteScalar()!;
         }
@@ -291,6 +294,7 @@ public class ConfiguracionDocumentoRepository
         FormatoCarpeta = Enum.Parse<FormatoCarpeta>(lector.GetString(4)),
         PatronCarpeta = lector.IsDBNull(5) ? null : lector.GetString(5),
         Renombrar = lector.GetInt32(6) != 0,
+        AbrirDespuesDeGuardar = lector.GetInt32(7) != 0,
         Patrones = []
     };
 

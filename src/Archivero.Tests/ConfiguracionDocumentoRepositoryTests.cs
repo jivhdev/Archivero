@@ -66,6 +66,30 @@ public class ConfiguracionDocumentoRepositoryTests : IDisposable
     }
 
     [Fact]
+    public void GuardarNueva_SinIndicarAbrirDespuesDeGuardar_ArrancaEnFalse()
+    {
+        var repo = new ConfiguracionDocumentoRepository();
+        repo.GuardarNueva("Banco Galicia", "Resumen de cuenta", @"C:\Destino", FormatoCarpeta.Directo, null, false, new List<Marca>());
+
+        var configuracion = repo.BuscarPorEmisorYTipo("Banco Galicia", "Resumen de cuenta");
+
+        Assert.NotNull(configuracion);
+        Assert.False(configuracion!.AbrirDespuesDeGuardar);
+    }
+
+    [Fact]
+    public void GuardarNueva_ConAbrirDespuesDeGuardarActivado_LoPersiste()
+    {
+        var repo = new ConfiguracionDocumentoRepository();
+        repo.GuardarNueva("Banco Galicia", "Resumen de cuenta", @"C:\Destino", FormatoCarpeta.Directo, null, false, new List<Marca>(), abrirDespuesDeGuardar: true);
+
+        var configuracion = repo.BuscarPorEmisorYTipo("Banco Galicia", "Resumen de cuenta");
+
+        Assert.NotNull(configuracion);
+        Assert.True(configuracion!.AbrirDespuesDeGuardar);
+    }
+
+    [Fact]
     public void ObtenerTodasConPatrones_ConUnPatronSinMarcas_LoDevuelveComoPatronVacio()
     {
         // Caso-1, punto 1: un "patron sin texto" (documento sin texto extraible) no tiene
@@ -119,14 +143,14 @@ public class ConfiguracionDocumentoRepositoryTests : IDisposable
     }
 
     [Fact]
-    public void ActualizarDestino_CambiaCarpetaFormatoYRenombrar_SinTocarElEmisorNiElTipo()
+    public void ActualizarDestino_CambiaCarpetaFormatoRenombrarYAbrirDespuesDeGuardar_SinTocarElEmisorNiElTipo()
     {
         var repo = new ConfiguracionDocumentoRepository();
         var configuracionId = repo.GuardarNueva(
             "Banco Galicia", "Resumen de cuenta", @"C:\Destino", FormatoCarpeta.Directo, null, false,
             [new Marca(CampoMarca.Emisor, 0, 0.1, 0.1, 0.2, 0.05), new Marca(CampoMarca.Tipo, 0, 0.1, 0.2, 0.2, 0.05)]);
 
-        repo.ActualizarDestino(configuracionId, @"C:\OtroDestino", FormatoCarpeta.Anio, "yyyy", true);
+        repo.ActualizarDestino(configuracionId, @"C:\OtroDestino", FormatoCarpeta.Anio, "yyyy", true, true);
 
         var configuracion = repo.BuscarPorEmisorYTipo("Banco Galicia", "Resumen de cuenta");
 
@@ -135,6 +159,7 @@ public class ConfiguracionDocumentoRepositoryTests : IDisposable
         Assert.Equal(FormatoCarpeta.Anio, configuracion.FormatoCarpeta);
         Assert.Equal("yyyy", configuracion.PatronCarpeta);
         Assert.True(configuracion.Renombrar);
+        Assert.True(configuracion.AbrirDespuesDeGuardar);
     }
 
     [Fact]

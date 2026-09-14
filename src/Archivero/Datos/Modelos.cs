@@ -61,4 +61,7 @@ public record ConfiguracionDocumento
     public string? PatronCarpeta { get; init; }
     public required bool Renombrar { get; init; }
     public required List<PatronReconocimiento> Patrones { get; init; }
+
+    /// <summary>Caso-1, punto 5: si está activo, abre el archivo en el visor de PDF del sistema apenas se guarda solo.</summary>
+    public bool AbrirDespuesDeGuardar { get; init; }
 }

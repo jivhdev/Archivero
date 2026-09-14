@@ -94,6 +94,12 @@ public static class GuardadoAutomaticoService
         try
         {
             var rutaFinal = ClasificadorService.Clasificar(rutaArchivo, configuracionConPatronCoincidente, campos.Fecha, campos.NombreExtraido);
+
+            if (configuracionConPatronCoincidente.AbrirDespuesDeGuardar)
+            {
+                AbrirEnVisorDelSistema(rutaFinal);
+            }
+
             return new ResultadoProcesamiento(ResultadoGuardadoAutomatico.Guardado, rutaFinal);
         }
         catch (ArchivoDuplicadoException ex)
@@ -107,4 +113,20 @@ public static class GuardadoAutomaticoService
     }
 
     private static RectanguloFraccion ARect(Marca marca) => new(marca.X, marca.Y, marca.Ancho, marca.Alto);
+
+    /// <summary>
+    /// Caso-1, punto 5: reemplaza la apertura automática que hacía PDFCreator antes de que
+    /// Archivero moviera el archivo. Si no se puede abrir (ej. no hay un visor de PDF asociado),
+    /// no afecta el resultado del guardado -- el archivo ya quedó guardado igual.
+    /// </summary>
+    private static void AbrirEnVisorDelSistema(string rutaArchivo)
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(rutaArchivo) { UseShellExecute = true });
+        }
+        catch
+        {
+        }
+    }
 }
