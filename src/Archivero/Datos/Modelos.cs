@@ -28,7 +28,13 @@ public enum MotivoPendiente
     Duplicado,
 
     /// <summary>Coincidió con una configuración, pero su carpeta de destino no está disponible ahora.</summary>
-    CarpetaNoDisponible
+    CarpetaNoDisponible,
+
+    /// <summary>Coincidió con una configuración, pero la carpeta del período actual todavía no existe (Caso-1, punto 2).</summary>
+    PeriodoNuevo,
+
+    /// <summary>El PDF no tiene texto extraíble: no se puede marcar por coordenadas (Caso-1, punto 1).</summary>
+    SinTextoExtraible
 }
 
 /// <summary>

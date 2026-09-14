@@ -48,8 +48,11 @@ public class GuardadoAutomaticoServiceTests : IDisposable
     }
 
     [Fact]
-    public void Procesar_ConFormatoAnioYFechaValida_CreaSubcarpetaDelAnio()
+    public void Procesar_ConFormatoAnioYCarpetaDelPeriodoYaExiste_GuardaSolo()
     {
+        // Caso comun (silencioso, sin intervencion): la carpeta del periodo actual ya existe,
+        // asi que Archivero guarda directo, como pide REQ-002.
+        Directory.CreateDirectory(Path.Combine(_carpetaDestino, "2026"));
         var ruta = CreadorPdfDePrueba.CrearConLineas(_carpetaOrigen, "Banco de Prueba SA", "Resumen de cuenta", "12/09/2026");
         var configuracion = new ConfiguracionDocumento
         {
@@ -75,6 +78,39 @@ public class GuardadoAutomaticoServiceTests : IDisposable
 
         Assert.Equal(ResultadoGuardadoAutomatico.Guardado, resultado.Resultado);
         Assert.Equal(Path.Combine(_carpetaDestino, "2026"), Path.GetDirectoryName(resultado.RutaFinal));
+    }
+
+    [Fact]
+    public void Procesar_ConFormatoAnioYCarpetaDelPeriodoTodaviaNoExiste_DevuelvePeriodoNuevoYNoLaCrea()
+    {
+        // Caso-1, punto 2 (ultimo parrafo): la carpeta del periodo actual todavia no existe --
+        // Archivero nunca la crea sola, se lo deja a una decision activa del usuario.
+        var ruta = CreadorPdfDePrueba.CrearConLineas(_carpetaOrigen, "Banco de Prueba SA", "Resumen de cuenta", "12/09/2026");
+        var configuracion = new ConfiguracionDocumento
+        {
+            Id = 1,
+            Emisor = "Banco de Prueba SA",
+            Tipo = "Resumen de cuenta",
+            CarpetaDestino = _carpetaDestino,
+            FormatoCarpeta = FormatoCarpeta.Anio,
+            PatronCarpeta = "yyyy",
+            Renombrar = false,
+            Patrones =
+            [
+                new PatronReconocimiento(1,
+                [
+                    MarcaDeLinea(CampoMarca.Emisor, 0),
+                    MarcaDeLinea(CampoMarca.Tipo, 1),
+                    MarcaDeLinea(CampoMarca.Fecha, 2)
+                ])
+            ]
+        };
+
+        var resultado = GuardadoAutomaticoService.Procesar(ruta, configuracion);
+
+        Assert.Equal(ResultadoGuardadoAutomatico.PeriodoNuevo, resultado.Resultado);
+        Assert.False(Directory.Exists(Path.Combine(_carpetaDestino, "2026")));
+        Assert.True(File.Exists(ruta));
     }
 
     [Fact]

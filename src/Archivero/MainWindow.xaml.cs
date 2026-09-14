@@ -95,6 +95,10 @@ public partial class MainWindow : Window
         {
             AbrirResolucionDeDuplicado(pendiente.RutaArchivo);
         }
+        else if (pendiente.Motivo == MotivoPendiente.PeriodoNuevo)
+        {
+            AbrirCreacionDePeriodo(pendiente.RutaArchivo);
+        }
         else
         {
             var asistente = new IdentificarDocumentoWindow(pendiente.RutaArchivo) { Owner = this };
@@ -138,6 +142,38 @@ public partial class MainWindow : Window
 
         var resolver = new ResolverDuplicadoWindow(rutaArchivo, rutaDestinoConflicto) { Owner = this };
         resolver.ShowDialog();
+    }
+
+    private void AbrirCreacionDePeriodo(string rutaArchivo)
+    {
+        if (!File.Exists(rutaArchivo))
+        {
+            return;
+        }
+
+        var configuraciones = _configuraciones.ObtenerTodasConPatrones();
+        var coincidencia = CoincidenciaAutomaticaService.BuscarConfiguracionQueCoincide(rutaArchivo, configuraciones);
+        if (coincidencia is null)
+        {
+            var asistente = new IdentificarDocumentoWindow(rutaArchivo) { Owner = this };
+            asistente.ShowDialog();
+            return;
+        }
+
+        var (campos, error) = GuardadoAutomaticoService.ExtraerCamposParaClasificar(rutaArchivo, coincidencia);
+        if (campos?.Fecha is null)
+        {
+            System.Windows.MessageBox.Show(this,
+                $"No se pudo volver a leer la fecha de este documento ({error}). Probá abrirlo desde \"Administrar clasificaciones\" para revisar el patrón.",
+                "Archivero", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var carpetaPeriodo = Path.GetDirectoryName(
+            ClasificadorService.CalcularRutaDestino(rutaArchivo, coincidencia, campos.Fecha, campos.NombreExtraido))!;
+
+        var ventana = new CrearPeriodoWindow(rutaArchivo, coincidencia, campos.Fecha.Value, campos.NombreExtraido, carpetaPeriodo) { Owner = this };
+        ventana.ShowDialog();
     }
 
     private void BtnAdministrarClasificaciones_Click(object sender, RoutedEventArgs e)

@@ -9,7 +9,8 @@ public enum ResultadoGuardadoAutomatico
     Guardado,
     ValorInvalido,
     Duplicado,
-    CarpetaNoDisponible
+    CarpetaNoDisponible,
+    PeriodoNuevo
 }
 
 public record ResultadoProcesamiento(ResultadoGuardadoAutomatico Resultado, string? RutaFinal = null, string? Detalle = null);
@@ -72,6 +73,22 @@ public static class GuardadoAutomaticoService
         if (campos is null)
         {
             return new ResultadoProcesamiento(ResultadoGuardadoAutomatico.ValorInvalido, Detalle: error);
+        }
+
+        // Caso-1, punto 2 (ultimo parrafo): si la carpeta del periodo actual todavia no existe,
+        // Archivero no la crea sola -- eso pasa a ser una decision activa del usuario (pendiente
+        // con su propia pantalla), nunca una suposicion automatica del programa.
+        if (configuracionConPatronCoincidente.FormatoCarpeta != FormatoCarpeta.Directo
+            && Directory.Exists(configuracionConPatronCoincidente.CarpetaDestino))
+        {
+            var rutaDestinoCalculada = ClasificadorService.CalcularRutaDestino(
+                rutaArchivo, configuracionConPatronCoincidente, campos.Fecha, campos.NombreExtraido);
+            var carpetaPeriodo = Path.GetDirectoryName(rutaDestinoCalculada)!;
+
+            if (!Directory.Exists(carpetaPeriodo))
+            {
+                return new ResultadoProcesamiento(ResultadoGuardadoAutomatico.PeriodoNuevo, Detalle: carpetaPeriodo);
+            }
         }
 
         try
