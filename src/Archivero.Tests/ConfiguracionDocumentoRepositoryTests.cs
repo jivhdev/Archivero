@@ -49,6 +49,21 @@ public class ConfiguracionDocumentoRepositoryTests : IDisposable
     }
 
     [Fact]
+    public void ObtenerTodasConPatrones_ConUnPatronSinMarcas_LoDevuelveComoPatronVacio()
+    {
+        // Caso-1, punto 1: un "patron sin texto" (documento sin texto extraible) no tiene
+        // ninguna marca. Antes se perdia al leerlo de vuelta (INNER JOIN desde Marcas).
+        var repo = new ConfiguracionDocumentoRepository();
+        repo.GuardarNueva("Proveedor Escaneado", "Recibo escaneado", @"C:\Destino", FormatoCarpeta.Directo, null, false, new List<Marca>());
+
+        var configuraciones = repo.ObtenerTodasConPatrones();
+
+        var configuracion = Assert.Single(configuraciones);
+        var patron = Assert.Single(configuracion.Patrones);
+        Assert.Empty(patron.Marcas);
+    }
+
+    [Fact]
     public void BuscarPorEmisorYTipo_DevuelveElPatronConLasMarcasGuardadas()
     {
         var repo = new ConfiguracionDocumentoRepository();

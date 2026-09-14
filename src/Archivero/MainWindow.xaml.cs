@@ -99,6 +99,11 @@ public partial class MainWindow : Window
         {
             AbrirCreacionDePeriodo(pendiente.RutaArchivo);
         }
+        else if (pendiente.Motivo == MotivoPendiente.SinTextoExtraible)
+        {
+            var identificarSinTexto = new IdentificarSinTextoWindow(pendiente.RutaArchivo) { Owner = this };
+            identificarSinTexto.ShowDialog();
+        }
         else
         {
             var asistente = new IdentificarDocumentoWindow(pendiente.RutaArchivo) { Owner = this };

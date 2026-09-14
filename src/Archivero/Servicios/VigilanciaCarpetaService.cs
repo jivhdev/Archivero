@@ -116,8 +116,11 @@ public class VigilanciaCarpetaService : IDisposable
 
             if (!LectorPdf.TieneTextoExtraible(rutaArchivo))
             {
-                // No es un PDF con texto plano extraible (ej. una imagen escaneada): no se
-                // procesa, el usuario lo guarda a mano (RNF-3: nunca se toca ni se mueve).
+                // No es un PDF con texto plano extraible (ej. una imagen escaneada): no hay
+                // coordenadas que comparar, pero igual puede tener una ubicacion automatica ya
+                // configurada a mano (Caso-1, punto 1) -- nunca se procesa en silencio sin dejar
+                // rastro (RNF-3: nunca se toca ni se mueve sin que quede visible en algun lado).
+                ProcesarArchivoSinTexto(rutaArchivo);
                 return;
             }
 
@@ -130,44 +133,62 @@ public class VigilanciaCarpetaService : IDisposable
                 return;
             }
 
-            var resultado = GuardadoAutomaticoService.Procesar(rutaArchivo, coincidencia);
-            switch (resultado.Resultado)
-            {
-                case ResultadoGuardadoAutomatico.Guardado:
-                    _pendientes.Quitar(rutaArchivo);
-                    ArchivoGuardadoAutomaticamente?.Invoke(rutaArchivo, resultado.RutaFinal!);
-                    break;
-
-                case ResultadoGuardadoAutomatico.ValorInvalido:
-                    AgregarAPendientes(rutaArchivo, MotivoPendiente.ValorInvalido);
-                    break;
-
-                case ResultadoGuardadoAutomatico.Duplicado:
-                    if (AgregarAPendientes(rutaArchivo, MotivoPendiente.Duplicado))
-                    {
-                        ArchivoRequiereAtencion?.Invoke(rutaArchivo, resultado.Detalle ?? resultado.Resultado.ToString());
-                    }
-                    break;
-
-                case ResultadoGuardadoAutomatico.CarpetaNoDisponible:
-                    if (AgregarAPendientes(rutaArchivo, MotivoPendiente.CarpetaNoDisponible))
-                    {
-                        ArchivoRequiereAtencion?.Invoke(rutaArchivo, resultado.Detalle ?? resultado.Resultado.ToString());
-                    }
-                    break;
-
-                case ResultadoGuardadoAutomatico.PeriodoNuevo:
-                    if (AgregarAPendientes(rutaArchivo, MotivoPendiente.PeriodoNuevo))
-                    {
-                        ArchivoRequiereAtencion?.Invoke(rutaArchivo, resultado.Detalle ?? resultado.Resultado.ToString());
-                    }
-                    break;
-            }
+            ManejarResultadoGuardado(rutaArchivo, GuardadoAutomaticoService.Procesar(rutaArchivo, coincidencia));
         }
         catch
         {
             // RNF-2: si el archivo esta corrupto o no se puede leer, Archivero deja de intentar
             // con ese archivo puntual (sin tocarlo ni moverlo) y sigue observando con normalidad.
+        }
+    }
+
+    private void ProcesarArchivoSinTexto(string rutaArchivo)
+    {
+        var configuraciones = _configuraciones.ObtenerTodasConPatrones();
+        var coincidencia = CoincidenciaAutomaticaService.BuscarConfiguracionSinTextoQueCoincide(configuraciones);
+
+        if (coincidencia is null)
+        {
+            AgregarAPendientes(rutaArchivo, MotivoPendiente.SinTextoExtraible);
+            return;
+        }
+
+        ManejarResultadoGuardado(rutaArchivo, GuardadoAutomaticoService.Procesar(rutaArchivo, coincidencia));
+    }
+
+    private void ManejarResultadoGuardado(string rutaArchivo, ResultadoProcesamiento resultado)
+    {
+        switch (resultado.Resultado)
+        {
+            case ResultadoGuardadoAutomatico.Guardado:
+                _pendientes.Quitar(rutaArchivo);
+                ArchivoGuardadoAutomaticamente?.Invoke(rutaArchivo, resultado.RutaFinal!);
+                break;
+
+            case ResultadoGuardadoAutomatico.ValorInvalido:
+                AgregarAPendientes(rutaArchivo, MotivoPendiente.ValorInvalido);
+                break;
+
+            case ResultadoGuardadoAutomatico.Duplicado:
+                if (AgregarAPendientes(rutaArchivo, MotivoPendiente.Duplicado))
+                {
+                    ArchivoRequiereAtencion?.Invoke(rutaArchivo, resultado.Detalle ?? resultado.Resultado.ToString());
+                }
+                break;
+
+            case ResultadoGuardadoAutomatico.CarpetaNoDisponible:
+                if (AgregarAPendientes(rutaArchivo, MotivoPendiente.CarpetaNoDisponible))
+                {
+                    ArchivoRequiereAtencion?.Invoke(rutaArchivo, resultado.Detalle ?? resultado.Resultado.ToString());
+                }
+                break;
+
+            case ResultadoGuardadoAutomatico.PeriodoNuevo:
+                if (AgregarAPendientes(rutaArchivo, MotivoPendiente.PeriodoNuevo))
+                {
+                    ArchivoRequiereAtencion?.Invoke(rutaArchivo, resultado.Detalle ?? resultado.Resultado.ToString());
+                }
+                break;
         }
     }
 
