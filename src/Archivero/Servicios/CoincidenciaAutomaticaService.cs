@@ -59,6 +59,25 @@ public static class CoincidenciaAutomaticaService
         return null;
     }
 
+    /// <summary>
+    /// Para PDFs sin texto extraible (Caso-1, punto 1): no hay nada que comparar por
+    /// coordenadas, así que se busca directo una configuración que ya tenga un "patrón sin
+    /// texto" (un patrón sin ninguna marca, creado a mano para este mismo caso). Si hay más de
+    /// una configuración así, es ambiguo — no hay evidencia para saber a cuál corresponde, así
+    /// que no se adivina y se deja pendiente.
+    /// </summary>
+    public static ConfiguracionDocumento? BuscarConfiguracionSinTextoQueCoincide(IEnumerable<ConfiguracionDocumento> configuraciones)
+    {
+        var coincidencias = configuraciones
+            .Select(c => (Config: c, Patron: c.Patrones.FirstOrDefault(p => p.Marcas.Count == 0)))
+            .Where(x => x.Patron is not null)
+            .ToList();
+
+        return coincidencias.Count == 1
+            ? coincidencias[0].Config with { Patrones = [coincidencias[0].Patron!] }
+            : null;
+    }
+
     private static bool CoincideExacto(string textoExtraido, string valorEsperado) =>
         string.Equals(textoExtraido.Trim(), valorEsperado.Trim(), StringComparison.OrdinalIgnoreCase);
 

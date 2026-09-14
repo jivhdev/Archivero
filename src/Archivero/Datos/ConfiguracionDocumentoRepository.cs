@@ -256,36 +256,46 @@ public class ConfiguracionDocumentoRepository
 
     private static List<PatronReconocimiento> ObtenerPatrones(SqliteConnection conexion, int configuracionId)
     {
-        using var comando = conexion.CreateCommand();
-        comando.CommandText =
-            """
-            SELECT m.PatronId, m.Campo, m.Pagina, m.X, m.Y, m.Ancho, m.Alto, m.TextoReferencia
-            FROM Marcas m
-            JOIN PatronesReconocimiento p ON p.Id = m.PatronId
-            WHERE p.ConfiguracionId = $configuracionId
-            ORDER BY m.PatronId;
-            """;
-        comando.Parameters.AddWithValue("$configuracionId", configuracionId);
-
+        // Se buscan primero los patrones y despues las marcas por separado (en vez de un solo
+        // JOIN): un patron "sin texto" (Caso-1, punto 1) no tiene ninguna marca, y un INNER JOIN
+        // desde Marcas lo haria desaparecer por completo de los resultados.
         var patrones = new Dictionary<int, List<Marca>>();
-        using var lector = comando.ExecuteReader();
-        while (lector.Read())
-        {
-            var patronId = lector.GetInt32(0);
-            if (!patrones.TryGetValue(patronId, out var marcas))
-            {
-                marcas = [];
-                patrones[patronId] = marcas;
-            }
 
-            marcas.Add(new Marca(
-                Enum.Parse<CampoMarca>(lector.GetString(1)),
-                lector.GetInt32(2),
-                lector.GetDouble(3),
-                lector.GetDouble(4),
-                lector.GetDouble(5),
-                lector.GetDouble(6),
-                lector.IsDBNull(7) ? null : lector.GetString(7)));
+        using (var comandoPatrones = conexion.CreateCommand())
+        {
+            comandoPatrones.CommandText = "SELECT Id FROM PatronesReconocimiento WHERE ConfiguracionId = $configuracionId ORDER BY Id;";
+            comandoPatrones.Parameters.AddWithValue("$configuracionId", configuracionId);
+            using var lectorPatrones = comandoPatrones.ExecuteReader();
+            while (lectorPatrones.Read())
+            {
+                patrones[lectorPatrones.GetInt32(0)] = [];
+            }
+        }
+
+        using (var comandoMarcas = conexion.CreateCommand())
+        {
+            comandoMarcas.CommandText =
+                """
+                SELECT m.PatronId, m.Campo, m.Pagina, m.X, m.Y, m.Ancho, m.Alto, m.TextoReferencia
+                FROM Marcas m
+                JOIN PatronesReconocimiento p ON p.Id = m.PatronId
+                WHERE p.ConfiguracionId = $configuracionId
+                ORDER BY m.PatronId;
+                """;
+            comandoMarcas.Parameters.AddWithValue("$configuracionId", configuracionId);
+            using var lectorMarcas = comandoMarcas.ExecuteReader();
+            while (lectorMarcas.Read())
+            {
+                var patronId = lectorMarcas.GetInt32(0);
+                patrones[patronId].Add(new Marca(
+                    Enum.Parse<CampoMarca>(lectorMarcas.GetString(1)),
+                    lectorMarcas.GetInt32(2),
+                    lectorMarcas.GetDouble(3),
+                    lectorMarcas.GetDouble(4),
+                    lectorMarcas.GetDouble(5),
+                    lectorMarcas.GetDouble(6),
+                    lectorMarcas.IsDBNull(7) ? null : lectorMarcas.GetString(7)));
+            }
         }
 
         return patrones.Select(p => new PatronReconocimiento(p.Key, p.Value)).ToList();
