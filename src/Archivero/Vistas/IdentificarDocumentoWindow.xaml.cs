@@ -29,6 +29,7 @@ public partial class IdentificarDocumentoWindow : Window
     private FormatoCarpeta _formato;
     private string? _patronCarpeta;
     private bool _renombrar;
+    private bool _abrirDespuesDeGuardar;
     private ConfiguracionDocumento? _configuracionExistente;
     private readonly (ConfiguracionDocumento Configuracion, int PatronId)? _edicion;
 
@@ -98,6 +99,7 @@ public partial class IdentificarDocumentoWindow : Window
         _formato = configuracion.FormatoCarpeta;
         _patronCarpeta = configuracion.PatronCarpeta;
         _renombrar = configuracion.Renombrar;
+        _abrirDespuesDeGuardar = configuracion.AbrirDespuesDeGuardar;
 
         CmbEmisor.Text = _emisor;
         CmbTipo.Text = _tipo;
@@ -116,6 +118,7 @@ public partial class IdentificarDocumentoWindow : Window
 
         RbMantenerNombre.IsChecked = !_renombrar;
         RbExtraerNombre.IsChecked = _renombrar;
+        ChkAbrirDespuesDeGuardar.IsChecked = _abrirDespuesDeGuardar;
 
         foreach (var marca in patron.Marcas)
         {
@@ -419,6 +422,11 @@ public partial class IdentificarDocumentoWindow : Window
         }
     }
 
+    private void ChkAbrirDespuesDeGuardar_Changed(object sender, RoutedEventArgs e)
+    {
+        _abrirDespuesDeGuardar = ChkAbrirDespuesDeGuardar.IsChecked == true;
+    }
+
     private void AplicarConfiguracionExistente(ConfiguracionDocumento existente)
     {
         _configuracionExistente = existente;
@@ -426,6 +434,7 @@ public partial class IdentificarDocumentoWindow : Window
         _formato = existente.FormatoCarpeta;
         _patronCarpeta = existente.PatronCarpeta;
         _renombrar = existente.Renombrar;
+        _abrirDespuesDeGuardar = existente.AbrirDespuesDeGuardar;
 
         TxtCarpetaDestino.Text = _carpetaDestino;
         BtnElegirCarpeta.IsEnabled = false;
@@ -443,6 +452,9 @@ public partial class IdentificarDocumentoWindow : Window
         RbMantenerNombre.IsChecked = !_renombrar;
         RbExtraerNombre.IsChecked = _renombrar;
         RbMantenerNombre.IsEnabled = RbExtraerNombre.IsEnabled = false;
+
+        ChkAbrirDespuesDeGuardar.IsChecked = _abrirDespuesDeGuardar;
+        ChkAbrirDespuesDeGuardar.IsEnabled = false;
     }
 
     private void PrepararPasoFormato(DeteccionFormatoCarpeta deteccion)
@@ -739,7 +751,7 @@ public partial class IdentificarDocumentoWindow : Window
                 // Modo edicion: solo se actualizan las marcas del patron y la configuracion.
                 // El PDF de ejemplo elegido para revisar/corregir no se toca ni se mueve.
                 _configuraciones.ActualizarPatron(edicion.PatronId, marcas);
-                _configuraciones.ActualizarDestino(edicion.Configuracion.Id, _carpetaDestino, _formato, _patronCarpeta, _renombrar);
+                _configuraciones.ActualizarDestino(edicion.Configuracion.Id, _carpetaDestino, _formato, _patronCarpeta, _renombrar, _abrirDespuesDeGuardar);
 
                 System.Windows.MessageBox.Show(this, "Cambios guardados.", "Archivero",
                     MessageBoxButton.OK, MessageBoxImage.Information);
@@ -761,6 +773,7 @@ public partial class IdentificarDocumentoWindow : Window
                 FormatoCarpeta = _formato,
                 PatronCarpeta = _patronCarpeta,
                 Renombrar = _renombrar,
+                AbrirDespuesDeGuardar = _abrirDespuesDeGuardar,
                 Patrones = []
             };
 
@@ -799,7 +812,7 @@ public partial class IdentificarDocumentoWindow : Window
         }
         else
         {
-            _configuraciones.GuardarNueva(_emisor, _tipo, _carpetaDestino, _formato, _patronCarpeta, _renombrar, marcas);
+            _configuraciones.GuardarNueva(_emisor, _tipo, _carpetaDestino, _formato, _patronCarpeta, _renombrar, marcas, _abrirDespuesDeGuardar);
         }
 
         _pendientes.Quitar(_rutaArchivo);
