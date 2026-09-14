@@ -145,6 +145,46 @@ public class ConfiguracionDocumentoRepository
         return configuracionId;
     }
 
+    /// <summary>
+    /// Borra una configuración de documento completa (Caso-1, punto 4): sus patrones y marcas,
+    /// y la configuración en sí. No toca ningún archivo ya guardado en disco.
+    /// </summary>
+    public void EliminarConfiguracion(int configuracionId)
+    {
+        using var conexion = BaseDeDatos.CrearConexion();
+        using var transaccion = conexion.BeginTransaction();
+
+        using (var borrarMarcas = conexion.CreateCommand())
+        {
+            borrarMarcas.Transaction = transaccion;
+            borrarMarcas.CommandText =
+                """
+                DELETE FROM Marcas
+                WHERE PatronId IN (SELECT Id FROM PatronesReconocimiento WHERE ConfiguracionId = $configuracionId);
+                """;
+            borrarMarcas.Parameters.AddWithValue("$configuracionId", configuracionId);
+            borrarMarcas.ExecuteNonQuery();
+        }
+
+        using (var borrarPatrones = conexion.CreateCommand())
+        {
+            borrarPatrones.Transaction = transaccion;
+            borrarPatrones.CommandText = "DELETE FROM PatronesReconocimiento WHERE ConfiguracionId = $configuracionId;";
+            borrarPatrones.Parameters.AddWithValue("$configuracionId", configuracionId);
+            borrarPatrones.ExecuteNonQuery();
+        }
+
+        using (var borrarConfiguracion = conexion.CreateCommand())
+        {
+            borrarConfiguracion.Transaction = transaccion;
+            borrarConfiguracion.CommandText = "DELETE FROM Configuraciones WHERE Id = $configuracionId;";
+            borrarConfiguracion.Parameters.AddWithValue("$configuracionId", configuracionId);
+            borrarConfiguracion.ExecuteNonQuery();
+        }
+
+        transaccion.Commit();
+    }
+
     public void AgregarPatronAConfiguracionExistente(int configuracionId, List<Marca> marcas)
     {
         using var conexion = BaseDeDatos.CrearConexion();

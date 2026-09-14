@@ -116,6 +116,31 @@ public partial class AdministrarClasificacionesWindow : Window
         }
     }
 
+    private void BtnBorrar_Click(object sender, RoutedEventArgs e)
+    {
+        if (ListaClasificaciones.SelectedItem is not FilaClasificacion fila)
+        {
+            System.Windows.MessageBox.Show(this, "Seleccioná una clasificación de la lista para borrar.", "Archivero",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var confirmar = System.Windows.MessageBox.Show(
+            this,
+            $"¿Borrar la configuración de \"{fila.Emisor}\" / \"{fila.Tipo}\"?\n\n" +
+            "Los documentos que ya se guardaron con ella no se tocan ni se mueven. " +
+            "Los próximos documentos de este Emisor y Tipo van a volver a pedir identificación.",
+            "Archivero", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+
+        if (confirmar != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        _configuraciones.EliminarConfiguracion(fila.Configuracion.Id);
+        CargarClasificaciones();
+    }
+
     private void BtnExportar_Click(object sender, RoutedEventArgs e)
     {
         using var dialogo = new SaveFileDialog
