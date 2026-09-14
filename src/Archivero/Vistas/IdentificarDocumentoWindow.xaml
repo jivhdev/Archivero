@@ -99,6 +99,7 @@
 
         <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal"
                     HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Name="BtnAtras" Content="&lt; Atrás" Width="90" Margin="0,0,8,0" Padding="6,6" Click="BtnAtras_Click"/>
             <Button Name="BtnPosponer" Content="Posponer" Width="100" Margin="0,0,8,0" Padding="6,6" Click="BtnPosponer_Click"/>
             <Button Name="BtnCancelar" Content="Cancelar" Width="100" Margin="0,0,8,0" Padding="6,6" Click="BtnCancelar_Click"/>
             <Button Name="BtnSiguiente" Content="Siguiente" Width="150" Padding="6,6" IsDefault="True" Click="BtnSiguiente_Click"/>

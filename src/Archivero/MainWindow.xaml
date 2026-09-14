@@ -34,7 +34,7 @@
             </Grid.RowDefinitions>
 
             <TextBlock Grid.Row="0" Text="Guardados automáticamente (recientes)" FontWeight="Bold" Margin="0,0,0,8"/>
-            <ListBox Grid.Row="1" Name="ListaGuardados"/>
+            <ListBox Grid.Row="1" Name="ListaGuardados" DisplayMemberPath="Resumen" MouseDoubleClick="ListaGuardados_MouseDoubleClick"/>
         </Grid>
     </Grid>
 </Window>

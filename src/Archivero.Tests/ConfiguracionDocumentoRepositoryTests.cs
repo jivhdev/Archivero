@@ -49,6 +49,23 @@ public class ConfiguracionDocumentoRepositoryTests : IDisposable
     }
 
     [Fact]
+    public void EliminarConfiguracion_BorraLaConfiguracionYSusPatronesYMarcas()
+    {
+        var repo = new ConfiguracionDocumentoRepository();
+        var marcas = new List<Marca>
+        {
+            new(CampoMarca.Emisor, 0, 0.1, 0.1, 0.2, 0.05),
+            new(CampoMarca.Tipo, 0, 0.1, 0.2, 0.2, 0.05)
+        };
+        var id = repo.GuardarNueva("Banco Galicia", "Resumen de cuenta", @"C:\Destino", FormatoCarpeta.Directo, null, false, marcas);
+
+        repo.EliminarConfiguracion(id);
+
+        Assert.Null(repo.BuscarPorEmisorYTipo("Banco Galicia", "Resumen de cuenta"));
+        Assert.Empty(repo.ObtenerTodasConPatrones());
+    }
+
+    [Fact]
     public void ObtenerTodasConPatrones_ConUnPatronSinMarcas_LoDevuelveComoPatronVacio()
     {
         // Caso-1, punto 1: un "patron sin texto" (documento sin texto extraible) no tiene

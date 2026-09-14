@@ -19,6 +19,7 @@ public partial class IdentificarDocumentoWindow : Window
     private readonly Dictionary<CampoMarca, Marca> _marcas = new();
 
     private Paso _paso;
+    private Paso _pasoInicial = Paso.EmisorTipo;
     private CampoMarca? _campoActivoParaMarcar;
     private bool _draftYaResuelto;
 
@@ -65,8 +66,13 @@ public partial class IdentificarDocumentoWindow : Window
     /// Modo edicion (REQ-004): revisa/corrige un patron de reconocimiento ya existente usando
     /// un PDF de ejemplo. No mueve ni renombra ese archivo — solo actualiza las marcas y la
     /// configuracion (carpeta/formato/nombre) en la base.
+    ///
+    /// <paramref name="comenzarEnPasoCarpeta"/> es para el caso de Caso-1, punto 4: al editar
+    /// desde "Guardados automáticamente", ya se conoce exactamente el Emisor/Tipo y se tiene el
+    /// documento real (no un ejemplo cualquiera) -- el asistente arranca directo en el paso de
+    /// elegir carpeta, sin pasar por un primer paso que no tiene nada para decidir.
     /// </summary>
-    public IdentificarDocumentoWindow(string rutaArchivo, ConfiguracionDocumento configuracion, PatronReconocimiento patron)
+    public IdentificarDocumentoWindow(string rutaArchivo, ConfiguracionDocumento configuracion, PatronReconocimiento patron, bool comenzarEnPasoCarpeta = false)
     {
         InitializeComponent();
         _rutaArchivo = rutaArchivo;
@@ -80,7 +86,8 @@ public partial class IdentificarDocumentoWindow : Window
 
         ActualizarEstadosDeMarca();
         ActualizarMarcasEnVisor();
-        MostrarPaso(Paso.EmisorTipo);
+        _pasoInicial = comenzarEnPasoCarpeta ? Paso.Carpeta : Paso.EmisorTipo;
+        MostrarPaso(_pasoInicial);
     }
 
     private void PrecargarParaEdicion(ConfiguracionDocumento configuracion, PatronReconocimiento patron)
@@ -242,6 +249,18 @@ public partial class IdentificarDocumentoWindow : Window
         BtnSiguiente.Content = nuevoPaso == Paso.Confirmar
             ? (_edicion is not null ? "Guardar cambios" : "Guardar y clasificar")
             : "Siguiente";
+
+        // Se puede retroceder un paso, pero nunca saltar hacia adelante -- sigue siendo
+        // estrictamente paso a paso.
+        BtnAtras.IsEnabled = nuevoPaso > _pasoInicial;
+    }
+
+    private void BtnAtras_Click(object sender, RoutedEventArgs e)
+    {
+        if (_paso > _pasoInicial)
+        {
+            MostrarPaso(_paso - 1);
+        }
     }
 
     private void BtnMarcarEmisor_Click(object sender, RoutedEventArgs e) => ArmarMarca(CampoMarca.Emisor);
