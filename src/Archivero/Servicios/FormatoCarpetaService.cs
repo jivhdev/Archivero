@@ -8,8 +8,12 @@ public record DeteccionFormatoCarpeta(FormatoCarpeta Formato, string? PatronCarp
 
 public static class FormatoCarpetaService
 {
-    private static readonly string[] PatronesAnioConocidos = ["yyyy", "yy"];
-    private static readonly string[] PatronesMesConocidos = ["MM", "MMMM", "yyyyMM"];
+    private static readonly string[] TokensAnio = ["yyyy", "yy"];
+    // "MMM" (abreviado, ej. "ene.") queda afuera: en es-ES el nombre abreviado termina en punto,
+    // y Windows recorta el punto final de cualquier nombre de carpeta -- nunca podria coincidir
+    // con una carpeta real.
+    private static readonly string[] TokensMes = ["MM", "MMMM", "yyyyMM"];
+    private static readonly string[] TodosLosTokens = TokensAnio.Concat(TokensMes).ToArray();
     private static readonly CultureInfo Cultura = CultureInfo.GetCultureInfo("es-ES");
 
     public static DeteccionFormatoCarpeta Detectar(string carpetaDestino)
@@ -19,45 +23,159 @@ public static class FormatoCarpetaService
             return new DeteccionFormatoCarpeta(FormatoCarpeta.Directo, null);
         }
 
-        var subcarpetas = Directory.GetDirectories(carpetaDestino);
-        var nombresAnio = subcarpetas.Select(Path.GetFileName).OfType<string>().ToList();
+        var carpetasNivel1 = Directory.GetDirectories(carpetaDestino);
+        var nombresNivel1 = carpetasNivel1.Select(Path.GetFileName).OfType<string>().ToList();
 
-        var patronAnio = DetectarPatron(nombresAnio, PatronesAnioConocidos);
-        if (patronAnio is null)
+        var patronNivel1 = DetectarPatronPorEvidencia(nombresNivel1, TokensAnio);
+        if (patronNivel1 is null)
         {
+            // Sin evidencia clara y consistente en las subcarpetas ya existentes: nunca se
+            // inventa una subdivision que nadie pidio. Ver Caso-1 (preguntas/Caso-1.md), punto 2.
             return new DeteccionFormatoCarpeta(FormatoCarpeta.Directo, null);
         }
 
-        var primeraCarpetaAnio = subcarpetas.First(d => CoincideConPatron(Path.GetFileName(d), patronAnio));
-        var nombresMes = Directory.GetDirectories(primeraCarpetaAnio).Select(Path.GetFileName).OfType<string>().ToList();
+        // La evidencia del segundo nivel se junta de TODAS las carpetas de primer nivel que ya
+        // coinciden con el patron (no solo la primera): con mas de un ejemplo real, se puede
+        // distinguir un texto realmente fijo de un numero que solo parece fijo porque por ahora
+        // hay una sola carpeta de primer nivel (ver DetectarPatronPorEvidencia).
+        var nombresNivel2 = carpetasNivel1
+            .Where(d => CoincideConPatron(Path.GetFileName(d), patronNivel1))
+            .SelectMany(Directory.GetDirectories)
+            .Select(Path.GetFileName)
+            .OfType<string>()
+            .Distinct()
+            .ToList();
 
-        var patronMes = nombresMes.Count > 0 ? DetectarPatron(nombresMes, PatronesMesConocidos) : null;
+        var patronNivel2 = DetectarPatronPorEvidencia(nombresNivel2, TokensMes);
 
-        return patronMes is not null
-            ? new DeteccionFormatoCarpeta(FormatoCarpeta.AnioMes, $"{patronAnio}\\{patronMes}")
-            : new DeteccionFormatoCarpeta(FormatoCarpeta.Anio, patronAnio);
+        return patronNivel2 is not null
+            ? new DeteccionFormatoCarpeta(FormatoCarpeta.AnioMes, $"{patronNivel1}\\{patronNivel2}")
+            : new DeteccionFormatoCarpeta(FormatoCarpeta.Anio, patronNivel1);
     }
 
-    private static string? DetectarPatron(List<string> nombres, string[] patronesConocidos)
+    /// <summary>
+    /// Busca un patron real comparando los nombres entre si (evidencia), en vez de compararlos
+    /// contra una lista fija de formatos completos. Separa, para cada nombre, una parte literal
+    /// fija (igual en todos los ejemplos) de una parte variable, y prueba si esa parte variable
+    /// es consistente con alguno de los tokens de fecha candidatos. Si no hay ningun nombre, o
+    /// ninguna combinacion es consistente en TODOS los ejemplos, no hay evidencia: devuelve null
+    /// (nunca se inventa un patron sin evidencia clara).
+    /// </summary>
+    private static string? DetectarPatronPorEvidencia(List<string> nombres, string[] tokensCandidatos)
     {
         if (nombres.Count == 0)
         {
             return null;
         }
 
-        foreach (var patron in patronesConocidos)
+        var largoMinimo = nombres.Min(n => n.Length);
+        var prefijoMaximo = LargoPrefijoComun(nombres);
+        var sufijoMaximo = LargoSufijoComun(nombres);
+
+        foreach (var token in tokensCandidatos)
         {
-            if (nombres.All(nombre => CoincideConPatron(nombre, patron)))
+            // Se prueba de mayor a menor cuanto texto literal se "come" el prefijo/sufijo: el
+            // primer corte que da una parte variable consistente con el token, en los tres
+            // (prefijo, variable, sufijo), es el patron real. Empezar por el corte mas grande
+            // evita que un numero coincidencialmente compartido entre los ejemplos (ej. "202" en
+            // "2023"/"2024"/"2025") se coma de mas por casualidad -- si eso pasara, el ancho de
+            // la parte variable resultante no encajaria con el token y el corte se descarta.
+            for (var prefijo = prefijoMaximo; prefijo >= 0; prefijo--)
             {
-                return patron;
+                for (var sufijo = sufijoMaximo; sufijo >= 0; sufijo--)
+                {
+                    if (prefijo + sufijo >= largoMinimo)
+                    {
+                        continue;
+                    }
+
+                    if (EncajaCorte(nombres, prefijo, sufijo, token))
+                    {
+                        var textoPrefijo = nombres[0][..prefijo];
+                        var textoSufijo = sufijo == 0 ? string.Empty : nombres[0][^sufijo..];
+                        return EnvolverLiteral(textoPrefijo) + token + EnvolverLiteral(textoSufijo);
+                    }
+                }
             }
         }
 
         return null;
     }
 
+    private static bool EncajaCorte(List<string> nombres, int prefijo, int sufijo, string token)
+    {
+        foreach (var nombre in nombres)
+        {
+            if (nombre.Length < prefijo + sufijo)
+            {
+                return false;
+            }
+
+            var variable = nombre[prefijo..(nombre.Length - sufijo)];
+            if (variable.Length == 0 || !CoincideConPatron(variable, token))
+            {
+                return false;
+            }
+        }
+
+        // El prefijo y el sufijo deben ser iguales en TODOS los nombres para contar como texto
+        // literal fijo -- si llegamos hasta aca es porque LargoPrefijoComun/LargoSufijoComun ya
+        // lo garantiza para estos anchos, pero además ninguno de los dos puede "parecer" en si
+        // mismo un valor de fecha valido: si lo pareciera, no hay forma de distinguir con la
+        // evidencia actual si es texto fijo de verdad o un componente de fecha que se repite
+        // (ej. el mismo año en todas las subcarpetas de mes de una sola carpeta de año todavia).
+        var textoPrefijo = nombres[0][..prefijo];
+        var textoSufijo = sufijo == 0 ? string.Empty : nombres[0][^sufijo..];
+        return !PareceValorDeFecha(textoPrefijo) && !PareceValorDeFecha(textoSufijo);
+    }
+
+    private static bool PareceValorDeFecha(string texto) =>
+        texto.Length > 0 && TodosLosTokens.Any(token => CoincideConPatron(texto, token));
+
+    private static int LargoPrefijoComun(List<string> nombres)
+    {
+        if (nombres.Count == 1)
+        {
+            return 0;
+        }
+
+        var largoMinimo = nombres.Min(n => n.Length);
+        var largo = 0;
+        while (largo < largoMinimo && nombres.All(n => n[largo] == nombres[0][largo]))
+        {
+            largo++;
+        }
+
+        return largo;
+    }
+
+    private static int LargoSufijoComun(List<string> nombres)
+    {
+        if (nombres.Count == 1)
+        {
+            return 0;
+        }
+
+        var largoMinimo = nombres.Min(n => n.Length);
+        var largo = 0;
+        while (largo < largoMinimo && nombres.All(n => n[^(largo + 1)] == nombres[0][^(largo + 1)]))
+        {
+            largo++;
+        }
+
+        return largo;
+    }
+
+    /// <summary>
+    /// Envuelve texto literal entre comillas simples para que DateTime.ToString/TryParseExact lo
+    /// trate como texto fijo -- ej. una "M" o una "y" dentro del texto literal no debe
+    /// interpretarse como parte del formato de fecha.
+    /// </summary>
+    private static string EnvolverLiteral(string texto) =>
+        texto.Length == 0 ? string.Empty : "'" + texto.Replace("'", "\\'") + "'";
+
     public static bool CoincideConPatron(string? nombre, string patron) =>
-        nombre is not null && DateTime.TryParseExact(nombre, patron, Cultura, DateTimeStyles.None, out _);
+        !string.IsNullOrEmpty(nombre) && DateTime.TryParseExact(nombre, patron, Cultura, DateTimeStyles.None, out _);
 
     public static string ConstruirSubcarpeta(FormatoCarpeta formato, string? patron, DateTime fecha)
     {
