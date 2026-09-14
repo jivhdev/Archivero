@@ -155,6 +155,13 @@ public class VigilanciaCarpetaService : IDisposable
                         ArchivoRequiereAtencion?.Invoke(rutaArchivo, resultado.Detalle ?? resultado.Resultado.ToString());
                     }
                     break;
+
+                case ResultadoGuardadoAutomatico.PeriodoNuevo:
+                    if (AgregarAPendientes(rutaArchivo, MotivoPendiente.PeriodoNuevo))
+                    {
+                        ArchivoRequiereAtencion?.Invoke(rutaArchivo, resultado.Detalle ?? resultado.Resultado.ToString());
+                    }
+                    break;
             }
         }
         catch

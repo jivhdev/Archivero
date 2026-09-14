@@ -77,6 +77,23 @@
                 <TextBlock Name="TxtResumen" TextWrapping="Wrap"/>
             </StackPanel>
 
+            <!-- Preview obligatorio de anterior/actual/futuro (Caso-1, punto 3). Visible desde
+                 el paso de Formato en adelante, se actualiza solo al cambiar algo relevante, y
+                 tambien con el boton, para ver el efecto en vivo de una correccion. -->
+            <Border Name="PanelPreview" Visibility="Collapsed" Margin="0,16,0,0" Padding="10"
+                    Background="#FFF6F6F6" BorderBrush="#FFD0D0D0" BorderThickness="1">
+                <StackPanel>
+                    <TextBlock Text="Vista previa de dónde va a quedar guardado" FontWeight="Bold" Margin="0,0,0,6" TextWrapping="Wrap"/>
+                    <TextBlock Text="Carpeta anterior (ya existente):" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                    <TextBlock Name="TxtPreviewAnterior" Foreground="Gray" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                    <TextBlock Text="Este documento quedaría en:" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                    <TextBlock Name="TxtPreviewActual" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                    <TextBlock Name="TxtPreviewFuturaTitulo" Text="Cuando llegue el próximo período, se crearía:" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                    <TextBlock Name="TxtPreviewFutura" Foreground="Gray" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                    <Button Name="BtnActualizarPreview" Content="Actualizar vista previa" Padding="6,4" HorizontalAlignment="Left" Click="BtnActualizarPreview_Click"/>
+                </StackPanel>
+            </Border>
+
             <TextBlock Name="TxtError" Foreground="Red" TextWrapping="Wrap" Margin="0,16,0,0" Visibility="Collapsed"/>
         </StackPanel>
 

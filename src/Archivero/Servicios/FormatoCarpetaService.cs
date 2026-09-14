@@ -177,6 +177,59 @@ public static class FormatoCarpetaService
     public static bool CoincideConPatron(string? nombre, string patron) =>
         !string.IsNullOrEmpty(nombre) && DateTime.TryParseExact(nombre, patron, Cultura, DateTimeStyles.None, out _);
 
+    /// <summary>
+    /// Busca un ejemplo real de subcarpeta ya existente que coincide con el patron confirmado --
+    /// para el preview obligatorio de "carpeta anterior" (Caso-1, punto 3): prueba visual de que
+    /// el patron se entendio bien, no un calculo teorico.
+    /// </summary>
+    public static string? BuscarCarpetaAnteriorReal(string carpetaDestino, FormatoCarpeta formato, string? patron)
+    {
+        if (formato == FormatoCarpeta.Directo)
+        {
+            return Directory.Exists(carpetaDestino) ? carpetaDestino : null;
+        }
+
+        if (patron is null || !Directory.Exists(carpetaDestino))
+        {
+            return null;
+        }
+
+        var partes = patron.Split('\\');
+        var nivel1 = Directory.GetDirectories(carpetaDestino)
+            .Where(d => CoincideConPatron(Path.GetFileName(d), partes[0]))
+            .OrderBy(d => Path.GetFileName(d), StringComparer.Ordinal)
+            .ToList();
+
+        if (nivel1.Count == 0)
+        {
+            return null;
+        }
+
+        if (partes.Length == 1)
+        {
+            return nivel1[^1];
+        }
+
+        foreach (var carpetaAnio in Enumerable.Reverse(nivel1))
+        {
+            var nivel2 = Directory.GetDirectories(carpetaAnio)
+                .Where(d => CoincideConPatron(Path.GetFileName(d), partes[1]))
+                .OrderBy(d => Path.GetFileName(d), StringComparer.Ordinal)
+                .ToList();
+
+            if (nivel2.Count > 0)
+            {
+                return nivel2[^1];
+            }
+        }
+
+        return nivel1[^1];
+    }
+
+    /// <summary>Fecha del próximo período, para el preview de "carpeta futura" (Caso-1, punto 3).</summary>
+    public static DateTime SiguientePeriodo(FormatoCarpeta formato, DateTime fecha) =>
+        formato == FormatoCarpeta.AnioMes ? fecha.AddMonths(1) : fecha.AddYears(1);
+
     public static string ConstruirSubcarpeta(FormatoCarpeta formato, string? patron, DateTime fecha)
     {
         if (formato == FormatoCarpeta.Directo)

@@ -205,6 +205,16 @@ public partial class IdentificarDocumentoWindow : Window
         PanelNombreArchivo.Visibility = nuevoPaso == Paso.NombreArchivo ? Visibility.Visible : Visibility.Collapsed;
         PanelConfirmar.Visibility = nuevoPaso == Paso.Confirmar ? Visibility.Visible : Visibility.Collapsed;
 
+        // Preview obligatorio de anterior/actual/futuro (Caso-1, punto 3): visible desde que hay
+        // carpeta+formato elegidos hasta confirmar, para que sea imposible llegar a "Guardar y
+        // clasificar" sin haberlo visto.
+        var mostrarPreview = nuevoPaso is Paso.Formato or Paso.NombreArchivo or Paso.Confirmar;
+        PanelPreview.Visibility = mostrarPreview ? Visibility.Visible : Visibility.Collapsed;
+        if (mostrarPreview)
+        {
+            ActualizarPreview();
+        }
+
         TxtError.Visibility = Visibility.Collapsed;
 
         var vinculando = _configuracionExistente is not null;
@@ -295,6 +305,11 @@ public partial class IdentificarDocumentoWindow : Window
         ResaltarBotonActivo(null);
         ActualizarEstadosDeMarca();
         ActualizarMarcasEnVisor();
+
+        if (PanelPreview.Visibility == Visibility.Visible)
+        {
+            ActualizarPreview();
+        }
     }
 
     private void ActualizarMarcasEnVisor()
@@ -368,11 +383,21 @@ public partial class IdentificarDocumentoWindow : Window
         {
             CmbPatronCarpeta.SelectedIndex = 0;
         }
+
+        if (PanelPreview.Visibility == Visibility.Visible)
+        {
+            ActualizarPreview();
+        }
     }
 
     private void OpcionNombre_Changed(object sender, RoutedEventArgs e)
     {
         PanelMarcarNombre.Visibility = RbExtraerNombre.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+
+        if (PanelPreview.Visibility == Visibility.Visible)
+        {
+            ActualizarPreview();
+        }
     }
 
     private void AplicarConfiguracionExistente(ConfiguracionDocumento existente)
@@ -411,6 +436,90 @@ public partial class IdentificarDocumentoWindow : Window
         {
             CmbPatronCarpeta.Text = deteccion.PatronCarpeta;
         }
+    }
+
+    private void BtnActualizarPreview_Click(object sender, RoutedEventArgs e) => ActualizarPreview();
+
+    /// <summary>
+    /// Preview obligatorio de anterior/actual/futuro (Caso-1, punto 3): usa el mismo calculo que
+    /// se usaria para guardar de verdad, con los datos que ya esten disponibles en este momento
+    /// del asistente (el nombre de archivo final recien se conoce en el Paso 4).
+    /// </summary>
+    private void ActualizarPreview()
+    {
+        var formato = _configuracionExistente?.FormatoCarpeta ?? LeerFormatoElegido() ?? _formato;
+        var patron = _configuracionExistente?.PatronCarpeta ?? (string.IsNullOrWhiteSpace(CmbPatronCarpeta.Text) ? null : CmbPatronCarpeta.Text.Trim());
+        var carpetaDestino = _configuracionExistente?.CarpetaDestino ?? _carpetaDestino;
+
+        if (string.IsNullOrWhiteSpace(carpetaDestino))
+        {
+            return;
+        }
+
+        var (fecha, fechaEsSupuesta) = LeerFechaPreview();
+        var nombreArchivo = LeerNombreArchivoPreview();
+
+        var configuracionTemporal = new ConfiguracionDocumento
+        {
+            Emisor = _emisor, Tipo = _tipo, CarpetaDestino = carpetaDestino,
+            FormatoCarpeta = formato, PatronCarpeta = patron, Renombrar = false, Patrones = []
+        };
+
+        TxtPreviewActual.Text = ClasificadorService.CalcularRutaDestino(nombreArchivo, configuracionTemporal, fecha, null)
+            + (fechaEsSupuesta ? "\n(usando la fecha de hoy: todavía no se marcó o no se pudo leer la fecha del documento)" : string.Empty);
+
+        var anterior = FormatoCarpetaService.BuscarCarpetaAnteriorReal(carpetaDestino, formato, patron);
+        TxtPreviewAnterior.Text = anterior ?? "(Todavía no hay ninguna carpeta así en el disco — esta sería la primera.)";
+
+        if (formato == FormatoCarpeta.Directo)
+        {
+            TxtPreviewFuturaTitulo.Visibility = Visibility.Collapsed;
+            TxtPreviewFutura.Visibility = Visibility.Collapsed;
+        }
+        else
+        {
+            TxtPreviewFuturaTitulo.Visibility = Visibility.Visible;
+            TxtPreviewFutura.Visibility = Visibility.Visible;
+            var fechaFutura = FormatoCarpetaService.SiguientePeriodo(formato, fecha);
+            var subcarpetaFutura = FormatoCarpetaService.ConstruirSubcarpeta(formato, patron, fechaFutura);
+            TxtPreviewFutura.Text = System.IO.Path.Combine(carpetaDestino, subcarpetaFutura);
+        }
+    }
+
+    private FormatoCarpeta? LeerFormatoElegido() => RbDirecto.IsChecked == true ? FormatoCarpeta.Directo
+        : RbAnio.IsChecked == true ? FormatoCarpeta.Anio
+        : RbAnioMes.IsChecked == true ? FormatoCarpeta.AnioMes
+        : null;
+
+    private (DateTime Fecha, bool EsSupuesta) LeerFechaPreview()
+    {
+        if (_marcas.TryGetValue(CampoMarca.Fecha, out var marca)
+            && !string.IsNullOrWhiteSpace(marca.TextoReferencia)
+            && FechaExtraidaService.TryParsear(marca.TextoReferencia, out var fecha))
+        {
+            return (fecha, false);
+        }
+
+        return (DateTime.Now, true);
+    }
+
+    /// <summary>
+    /// El nombre final recien se decide en el Paso 4 (mantener vs extraer): mientras tanto, el
+    /// preview usa el nombre original como mejor aproximacion disponible -- se corrige solo
+    /// apenas el usuario elige "extraer" y marca el campo.
+    /// </summary>
+    private string LeerNombreArchivoPreview()
+    {
+        var extrayendoNombre = _configuracionExistente?.Renombrar
+            ?? (RbExtraerNombre.IsChecked == true);
+
+        if (extrayendoNombre && _marcas.TryGetValue(CampoMarca.NombreArchivo, out var marca)
+            && !string.IsNullOrWhiteSpace(marca.TextoReferencia))
+        {
+            return marca.TextoReferencia + System.IO.Path.GetExtension(_rutaArchivo);
+        }
+
+        return _rutaArchivo;
     }
 
     private void MostrarResumen()
