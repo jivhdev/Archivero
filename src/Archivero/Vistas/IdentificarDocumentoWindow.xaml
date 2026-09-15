@@ -34,29 +34,71 @@
                 <ComboBox Name="CmbTipo" IsEditable="True" TextBoxBase.TextChanged="CmbTipo_TextChanged"/>
             </StackPanel>
 
-            <!-- Paso 2: Carpeta destino -->
+            <!-- Paso 2 (Caso-3, revisado): carpeta madre + eleccion explicita Directo/Subcarpetas -->
             <StackPanel Name="PanelCarpeta" Visibility="Collapsed">
-                <TextBlock Text="Carpeta de destino" FontWeight="Bold"/>
+                <TextBlock Text="Carpeta madre" FontWeight="Bold"/>
+                <TextBlock Text="La carpeta raíz donde va a vivir todo lo de este tipo de documento."
+                           Foreground="Gray" TextWrapping="Wrap" Margin="0,2,0,0"/>
                 <TextBox Name="TxtCarpetaDestino" IsReadOnly="True" Margin="0,8,0,8"/>
                 <Button Name="BtnElegirCarpeta" Content="Elegir carpeta…" Padding="6,4" HorizontalAlignment="Left" Click="BtnElegirCarpeta_Click"/>
+
+                <TextBlock Text="¿Cómo se va a guardar dentro de esa carpeta?" FontWeight="Bold" Margin="0,16,0,8"/>
+                <RadioButton Name="RbGuardarDirecto" Content="Guardar directo en esta carpeta" Margin="0,0,0,6"/>
+                <RadioButton Name="RbGuardarSubcarpetas" Content="Guardar en subcarpetas dentro de esta carpeta" Margin="0,0,0,6"/>
             </StackPanel>
 
-            <!-- Paso 3: Formato y patron de carpeta -->
-            <StackPanel Name="PanelFormato" Visibility="Collapsed">
-                <TextBlock Text="¿Cómo se organizan las subcarpetas?" FontWeight="Bold" Margin="0,0,0,8"/>
-                <RadioButton Name="RbDirecto" Content="Directo en la carpeta (sin subcarpetas)" Margin="0,0,0,6" Checked="OpcionFormato_Changed"/>
-                <RadioButton Name="RbAnio" Content="Por año" Margin="0,0,0,6" Checked="OpcionFormato_Changed"/>
-                <RadioButton Name="RbAnioMes" Content="Por año y mes" Margin="0,0,0,6" Checked="OpcionFormato_Changed"/>
+            <!-- Paso 3 (Caso-3, nuevo): tipo de organizacion, patron con ejemplos concretos, y fecha de referencia -->
+            <StackPanel Name="PanelOrganizacion" Visibility="Collapsed">
 
-                <StackPanel Name="PanelPatronCarpeta" Margin="0,8,0,0" Visibility="Collapsed">
-                    <TextBlock Text="Patrón de la subcarpeta (ej. yyyy o yyyy\MM):"/>
-                    <ComboBox Name="CmbPatronCarpeta" IsEditable="True" Margin="0,4,0,12"/>
+                <!-- 3a: accesos rápidos configurados por el usuario + "Ver todas las opciones" -->
+                <StackPanel Name="PanelAccesosRapidos">
+                    <TextBlock Text="¿Cómo querés organizar las subcarpetas?" FontWeight="Bold" Margin="0,0,0,8"/>
+                    <TextBlock Name="TxtSinAccesosRapidos" Visibility="Collapsed" Foreground="Gray" TextWrapping="Wrap" Margin="0,0,0,8"
+                               Text="Todavía no tenés accesos rápidos configurados. Elegí un tipo en &quot;Ver todas las opciones&quot; y va a quedar a mano para la próxima."/>
+                    <StackPanel Name="ContenedorAccesosRapidos" Margin="0,0,0,8"/>
+                    <Button Name="BtnVerTodasLasOpciones" Content="Ver todas las opciones" Padding="6,4" HorizontalAlignment="Left" Click="BtnVerTodas_Click"/>
                 </StackPanel>
 
-                <StackPanel Name="PanelMarcarFecha" Visibility="Collapsed">
-                    <TextBlock Text="Fecha del documento" FontWeight="Bold"/>
-                    <Button Name="BtnMarcarFecha" Content="Marcar fecha en el PDF" Margin="0,4,0,4" Padding="6,4" Click="BtnMarcarFecha_Click"/>
-                    <TextBlock Name="TxtEstadoMarcaFecha" Foreground="Gray" TextWrapping="Wrap"/>
+                <!-- 3b: lista completa de tipos, en el orden exacto del documento -->
+                <StackPanel Name="PanelListaCompleta" Visibility="Collapsed">
+                    <TextBlock Text="Elegir el tipo de organización" FontWeight="Bold" Margin="0,0,0,8"/>
+                    <ScrollViewer MaxHeight="360" VerticalScrollBarVisibility="Auto">
+                        <StackPanel Name="ContenedorListaCompleta"/>
+                    </ScrollViewer>
+                    <Button Content="Cancelar" Padding="6,4" HorizontalAlignment="Left" Margin="0,8,0,0" Click="BtnCancelarListaCompleta_Click"/>
+                </StackPanel>
+
+                <!-- 3b: enlazado del tipo elegido a un acceso rápido -->
+                <StackPanel Name="PanelEnlazar" Visibility="Collapsed">
+                    <TextBlock Name="TxtTipoPendienteEnlazar" Foreground="Gray" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                    <TextBlock Name="TxtPreguntaEnlazar" FontWeight="Bold" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                    <StackPanel Name="ContenedorReemplazos" Margin="0,0,0,8"/>
+                    <Button Name="BtnAgregarAccesoNuevo" Content="Agregar como acceso rápido nuevo" Padding="6,4" HorizontalAlignment="Left" Margin="0,0,0,8" Click="BtnAgregarAccesoNuevo_Click"/>
+                    <Button Content="Cancelar" Padding="6,4" HorizontalAlignment="Left" Click="BtnCancelarEnlazar_Click"/>
+                </StackPanel>
+
+                <!-- 3c + 3d: ejemplos concretos del patrón (con la fecha de referencia) y marcado de la fecha -->
+                <StackPanel Name="PanelPatron" Visibility="Collapsed">
+                    <TextBlock Name="TxtTipoElegido" FontWeight="Bold" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                    <TextBlock Name="TxtAvisoFechaHoy" Visibility="Collapsed" Foreground="Gray" TextWrapping="Wrap" Margin="0,0,0,8"
+                               Text="Estos ejemplos usan la fecha de hoy — marcá la fecha del documento abajo para ver el ejemplo real."/>
+                    <StackPanel Name="ContenedorEjemplos" Margin="0,0,0,8"/>
+
+                    <StackPanel Name="PanelPatronPersonalizado" Visibility="Collapsed" Margin="0,0,0,8">
+                        <TextBlock Text="Escribí el patrón a mano:" FontWeight="Bold" Margin="0,0,0,4"/>
+                        <TextBox Name="TxtPatronPersonalizado" TextChanged="TxtPatronPersonalizado_TextChanged"/>
+                        <TextBlock Name="TxtAyudaTokens" Foreground="Gray" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,4"
+                                   Text="Disponibles: yyyy (año) · yy (año corto) · MM (mes) · MMMM (nombre del mes) · dd (día) · S (semestre) · T (trimestre) · H (quincena) · WW (semana del año) · N (semana del mes) · 'texto' (literal) · \ (separa niveles de carpeta)"/>
+                        <TextBlock Name="TxtEjemploPersonalizado" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                    </StackPanel>
+
+                    <StackPanel Name="PanelMarcarFecha">
+                        <TextBlock Text="Fecha del documento" FontWeight="Bold"/>
+                        <Button Name="BtnMarcarFecha" Content="Marcar fecha en el PDF" Margin="0,4,0,4" Padding="6,4" Click="BtnMarcarFecha_Click"/>
+                        <TextBlock Name="TxtEstadoMarcaFecha" Foreground="Gray" TextWrapping="Wrap"/>
+                        <TextBlock Name="TxtFechaOpcional" Visibility="Collapsed" Foreground="Gray" TextWrapping="Wrap" Margin="0,4,0,0"
+                                   Text="Para este tipo de organización la fecha es opcional: si no la marcás, los ejemplos y la vista previa usan la fecha de hoy."/>
+                    </StackPanel>
                 </StackPanel>
             </StackPanel>
 
