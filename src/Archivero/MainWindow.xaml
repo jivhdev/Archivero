@@ -15,7 +15,10 @@
             <Button DockPanel.Dock="Right" Content="Administrar clasificaciones" Padding="8,4" Click="BtnAdministrarClasificaciones_Click"/>
             <TextBlock FontSize="16" FontWeight="Bold" Text="Archivero" VerticalAlignment="Center"/>
         </DockPanel>
-        <TextBlock Grid.Row="1" Name="TxtCarpetaObservada" Foreground="Gray" Margin="0,0,0,16" TextWrapping="Wrap"/>
+        <DockPanel Grid.Row="1" Margin="0,0,0,16">
+            <Button DockPanel.Dock="Right" Content="Cambiar…" Padding="8,2" Click="BtnCambiarCarpetaObservada_Click"/>
+            <TextBlock Name="TxtCarpetaObservada" Foreground="Gray" VerticalAlignment="Center" TextWrapping="Wrap"/>
+        </DockPanel>
 
         <Grid Grid.Row="2" Margin="0,0,0,16">
             <Grid.RowDefinitions>
