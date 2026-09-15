@@ -18,7 +18,9 @@ public partial class MainWindow : Window
 {
     private readonly PendienteRepository _pendientes = new();
     private readonly ConfiguracionDocumentoRepository _configuraciones = new();
-    private readonly VigilanciaCarpetaService _vigilancia;
+    private readonly CarpetaObservadaService _servicioCarpeta = new(new ConfiguracionRepository());
+    private VigilanciaCarpetaService _vigilancia;
+    private string _carpetaObservada;
     private readonly TrayIconService _bandeja = new();
     private readonly List<GuardadoReciente> _guardadosRecientes = [];
     private bool _permitirCierre;
@@ -26,17 +28,42 @@ public partial class MainWindow : Window
     public MainWindow(string carpetaObservada, VigilanciaCarpetaService vigilancia)
     {
         InitializeComponent();
+        _carpetaObservada = carpetaObservada;
         TxtCarpetaObservada.Text = $"Carpeta observada: {carpetaObservada}";
 
         _vigilancia = vigilancia;
+        SuscribirEventosVigilancia();
+
+        _bandeja.MostrarVentanaSolicitado += () => Dispatcher.Invoke(RestaurarVentana);
+        _bandeja.SalirSolicitado += () => Dispatcher.Invoke(SalirDeVerdad);
+
+        CargarPendientes();
+    }
+
+    private void SuscribirEventosVigilancia()
+    {
         _vigilancia.ArchivoPendienteDetectado += _ => Dispatcher.Invoke(CargarPendientes);
         _vigilancia.ArchivoPendienteEliminado += _ => Dispatcher.Invoke(CargarPendientes);
         _vigilancia.ArchivoRequiereAtencion += (_, _) => Dispatcher.Invoke(CargarPendientes);
         _vigilancia.ArchivoGuardadoAutomaticamente += (_, rutaFinal) => Dispatcher.Invoke(() => AgregarAGuardadosRecientes(rutaFinal));
         _vigilancia.CarpetaObservadaNoDisponible += () => Dispatcher.Invoke(AvisarCarpetaNoDisponible);
+    }
 
-        _bandeja.MostrarVentanaSolicitado += () => Dispatcher.Invoke(RestaurarVentana);
-        _bandeja.SalirSolicitado += () => Dispatcher.Invoke(SalirDeVerdad);
+    private void BtnCambiarCarpetaObservada_Click(object sender, RoutedEventArgs e)
+    {
+        var ventana = new CambiarCarpetaObservadaWindow(_servicioCarpeta, _carpetaObservada) { Owner = this };
+        if (ventana.ShowDialog() != true || ventana.CarpetaNueva is null)
+        {
+            return;
+        }
+
+        _vigilancia.Dispose();
+        _carpetaObservada = ventana.CarpetaNueva;
+        TxtCarpetaObservada.Text = $"Carpeta observada: {_carpetaObservada}";
+
+        _vigilancia = new VigilanciaCarpetaService(_carpetaObservada);
+        SuscribirEventosVigilancia();
+        _vigilancia.Iniciar();
 
         CargarPendientes();
     }

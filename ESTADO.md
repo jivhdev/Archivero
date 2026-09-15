@@ -3,13 +3,15 @@
 > Se actualiza al final de cada sesión. Es lo tercero que hay que leer (después de AGENTS.md y SPEC.md) para saber dónde quedamos.
 
 ## Última sesión
-- Fecha: 2026-09-14
-- Qué se hizo: `preguntas/Caso-1.md` (5 hallazgos reales del piloto, resueltos en el vault — ninguno contradice `SPEC.md`, la amplían o corrigen bugs reales) implementado completo, un punto a la vez, cada uno en su rama/PR, todos mergeados a `main` sin conflictos. Ver el detalle de cada uno en la sección "Caso-1" más abajo. 75 tests automáticos en total, todos verdes, en el `main` combinado.
+- Fecha: 2026-09-15 (desde la PC del trabajo)
+- Qué se hizo: `preguntas/Caso-2.md`, punto 1 (carpeta observada no configurable, afecta REQ-001) implementado y verificado a mano por Javier. Ver detalle en la sección "Caso-2" más abajo. El punto 2 del mismo caso (vigilancia que no reacciona) **queda pendiente**, sin tocar todavía.
+- Se instaló el SDK de .NET 8 en esta PC del trabajo (no estaba presente).
+- **Importante — decisión de Javier sobre cómo trabajar de acá en adelante**: no más de una sesión de Claude Code por proyecto en paralelo (evitar releer todo el contexto dos veces y gastar el límite semanal al pedo). Mientras no haya forma de sincronizar la carpeta del repo entre la PC del trabajo y la personal, Javier va a trabajar solo desde su PC personal.
 
 ## Siguiente paso
-- **Todo lo pedido en `Caso-1.md` está implementado y en `main`, pero todavía sin la verificación real a mano de Javier** (AGENTS.md pide correr la app real y probar el flujo, no solo confiar en los tests automáticos — el agente no tiene forma de hacer eso por su cuenta en una app de escritorio). Antes de dar Caso-1 por cerrado del todo, probar a mano cada punto — los pasos sugeridos están en la descripción de cada PR (#13 a #17) y resumidos abajo.
-- El `.exe` de `Distribucion/` **todavía no se regeneró** con los cambios de hoy: había una instancia de Archivero corriendo (PID activo) que bloqueaba el archivo, y no se cerró sola por las dudas de que fuera algo que Javier tenía abierto a propósito. Regenerar con el comando de `GIT.md` (o pedírselo al agente) después de cerrar esa instancia.
-- Fuera de esto, no queda nada pendiente conocido del alcance de `SPEC.md` + `Caso-1.md`. Sigue abierto, como antes, cerrar los "Open issues" que quedan (nombres finales de interfaz).
+- Falta el punto 2 de `preguntas/Caso-2.md` (vigilancia que no reacciona a archivos nuevos — bug grave, afecta REQ-002/REQ-005). Nota de esta sesión: al probar el punto 1 a mano, Javier dejó 2 archivos en la carpeta observada (nueva) con Archivero corriendo (ventana minimizada a la bandeja, no cerrado de verdad) y los reconoció de inmediato — **eso no prueba el punto 2**, que trata específicamente de archivos dejados mientras Archivero no está corriendo, o el watcher fallando en silencio. Sigue sin investigarse.
+- El `.exe` de `Distribucion/` se regeneró con el punto 1 de Caso-2 (ver `Distribucion/ESTADO-DISTRIBUCION.md`).
+- Fuera de esto, no queda nada pendiente conocido del alcance de `SPEC.md` + `Caso-1.md` (cerrado). Sigue abierto, como antes, cerrar los "Open issues" que quedan (nombres finales de interfaz).
 
 ## Caso-1 — 5 correcciones/ampliaciones del piloto real (2026-09-14)
 Ver `preguntas/Caso-1.md` para el texto completo de cada punto tal como lo trajo Javier del vault.
@@ -113,6 +115,19 @@ LICENSE (MIT, Javier Valdebenito, 2026). Ícono (`src/Archivero/Recursos/icono.i
 
 ### Nota sobre la sincronización automática del vault
 Hay un proceso en background (mencionado en `AGENTS.md`) que hace commits automáticos ("Sync automatico: ...") a este repo con la identidad de Javier, incluso a mitad de una sesión de trabajo. La mayoría de las veces es inofensivo (solo hace que aparezca un commit intermedio con código a medio terminar en el historial), pero **una vez alcanzó a comitear localmente el ejecutable de 161MB de `publish/`** en una rama que todavía no tenía la regla de `.gitignore` que lo excluye (se creó antes de mergear la rama de empaquetado). Se detectó y se deshizo (`git reset`) antes de pushear — nunca llegó a GitHub, pero pudo haber roto el push (GitHub rechaza archivos de más de 100MB). Ver memoria `project-vault-auto-sync`: antes de pushear una rama nueva, conviene revisar si hay un commit "Sync automatico" con algo grande adentro.
+
+## Caso-2 — carpeta observada no configurable + vigilancia que no reacciona (2026-09-15)
+Ver `preguntas/Caso-2.md` para el texto completo. Dos puntos reportados por Javier al usar Archivero en el pc del trabajo.
+
+### Punto 1 — cambiar la carpeta observada en cualquier momento (afecta REQ-001)
+Antes solo se podía definir una vez, en `OnboardingWindow`, sin forma de tocarla después. Se agregó un botón "Cambiar…" al lado del texto de la carpeta observada en `MainWindow`, que abre una ventana nueva (`Vistas/CambiarCarpetaObservadaWindow`) con el mismo flujo de elegir ubicación/nombre y la misma validación de `CarpetaObservadaService.CrearYMarcarComoObservada` (no reutiliza una carpeta ya existente a ciegas — mismo comportamiento que el onboarding inicial). Al confirmar, `MainWindow` descarta (`Dispose`) el `VigilanciaCarpetaService` viejo y arranca uno nuevo apuntando a la carpeta nueva, re-suscribiendo los mismos eventos (se extrajo `SuscribirEventosVigilancia` para no duplicar el cableado). La carpeta anterior no se toca ni se borra; los pendientes/guardados ya indexados con rutas de la carpeta vieja quedan como estaban (no se migran solos, tal como pide la corrección) — si esos archivos ya no existen ahí, `ReconciliarPendientesConDisco` los limpia solo al reiniciar.
+
+Verificado a mano por Javier en la pc del trabajo: cambió de carpeta, la ventana principal mostró la ruta nueva, y los pendientes/guardados de antes no desaparecieron.
+
+Nota de la sesión (no bloqueante): el onboarding de primera vez (`App.xaml.cs`, sin carpeta configurada) sigue funcionando igual que antes — no se tocó, solo se agregó la reconfiguración posterior.
+
+### Punto 2 — vigilancia que no reacciona a archivos nuevos (afecta REQ-002/REQ-005)
+**Todavía no investigado ni implementado.** Queda para la próxima sesión.
 
 ## Decisiones abiertas / dudas para el usuario
 - Nombres finales de interfaz pendientes (no bloquean el desarrollo) — ver "Open issues" de `SPEC.md`: la sección "pendientes por reconocer", la sección "configuraciones/identificaciones/identidades", el botón de revisar/actualizar disponibilidad, la opción de "vincular a configuración existente".
