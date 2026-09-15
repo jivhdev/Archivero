@@ -1,10 +1,23 @@
 namespace Archivero.Datos;
 
+/// <summary>
+/// Tipo de organización de subcarpetas dentro de la carpeta madre (Caso-3). El orden sigue la
+/// lista completa del Paso 3b, por granularidad creciente. <see cref="Personalizado"/> es para
+/// un patrón escrito a mano por el usuario ("Ninguna de estas — patrón personalizado").
+/// </summary>
 public enum FormatoCarpeta
 {
     Directo,
     Anio,
-    AnioMes
+    AnioSemestre,
+    AnioTrimestre,
+    AnioMes,
+    AnioQuincena,
+    AnioSemana,
+    AnioMesDia,
+    MesSinAnio,
+    SemanaDelMes,
+    Personalizado
 }
 
 public enum CampoMarca

@@ -30,7 +30,7 @@ public partial class CrearPeriodoWindow : Window
         _nombreExtraido = nombreExtraido;
         _carpetaPeriodoActual = carpetaPeriodoActual;
 
-        var fechaSiguiente = FormatoCarpetaService.SiguientePeriodo(configuracion.FormatoCarpeta, fecha);
+        var fechaSiguiente = FormatoCarpetaService.SiguientePeriodo(configuracion.FormatoCarpeta, fecha, configuracion.PatronCarpeta);
         var subcarpetaSiguiente = FormatoCarpetaService.ConstruirSubcarpeta(configuracion.FormatoCarpeta, configuracion.PatronCarpeta, fechaSiguiente);
         _carpetaPeriodoSiguiente = Path.Combine(configuracion.CarpetaDestino, subcarpetaSiguiente);
 

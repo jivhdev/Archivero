@@ -8,6 +8,10 @@ public class BorradorAsistente
     public string Tipo { get; set; } = string.Empty;
     public string CarpetaDestino { get; set; } = string.Empty;
     public string? Formato { get; set; }
+
+    /// <summary>Caso-3, Paso 2: la elección explícita Directo/Subcarpetas (independiente del tipo, que puede no estar elegido todavía).</summary>
+    public bool? GuardaEnSubcarpetas { get; set; }
+
     public string? PatronCarpeta { get; set; }
     public bool? Renombrar { get; set; }
     public List<Marca> Marcas { get; set; } = [];

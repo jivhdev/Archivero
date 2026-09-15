@@ -41,7 +41,7 @@ public static class BaseDeDatos
                 EmisorId INTEGER NOT NULL REFERENCES EntidadesConocidas (Id),
                 TipoId INTEGER NOT NULL REFERENCES EntidadesConocidas (Id),
                 CarpetaDestino TEXT NOT NULL,
-                FormatoCarpeta TEXT NOT NULL CHECK (FormatoCarpeta IN ('Directo', 'Anio', 'AnioMes')),
+                FormatoCarpeta TEXT NOT NULL CHECK (FormatoCarpeta IN ('Directo', 'Anio', 'AnioSemestre', 'AnioTrimestre', 'AnioMes', 'AnioQuincena', 'AnioSemana', 'AnioMesDia', 'MesSinAnio', 'SemanaDelMes', 'Personalizado')),
                 PatronCarpeta TEXT NULL,
                 Renombrar INTEGER NOT NULL DEFAULT 0,
                 AbrirDespuesDeGuardar INTEGER NOT NULL DEFAULT 0,
@@ -83,6 +83,86 @@ public static class BaseDeDatos
         AgregarColumnaSiFalta(conexion, "Marcas", "TextoReferencia", "TEXT NULL");
         AgregarColumnaSiFalta(conexion, "Pendientes", "Motivo", "TEXT NOT NULL DEFAULT 'NuevoDocumento'");
         AgregarColumnaSiFalta(conexion, "Configuraciones", "AbrirDespuesDeGuardar", "INTEGER NOT NULL DEFAULT 0");
+
+        MigrarCheckFormatoCarpeta(conexion);
+    }
+
+    /// <summary>
+    /// Migración de Caso-3: las bases creadas antes del rediseño tienen un CHECK que solo acepta
+    /// ('Directo', 'Anio', 'AnioMes'). SQLite no permite modificar un CHECK con ALTER TABLE, así
+    /// que la tabla se recrea y se copian los datos (procedimiento estándar de migración de
+    /// SQLite, con las foreign keys apagadas solo durante la reconstrucción). Es idempotente:
+    /// si la tabla ya admite los tipos nuevos, no hace nada.
+    /// </summary>
+    private static void MigrarCheckFormatoCarpeta(SqliteConnection conexion)
+    {
+        string? sqlActual;
+        using (var leerSql = conexion.CreateCommand())
+        {
+            leerSql.CommandText = "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'Configuraciones';";
+            sqlActual = leerSql.ExecuteScalar() as string;
+        }
+
+        if (sqlActual is null || sqlActual.Contains("'AnioSemestre'", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        using (var apagarFks = conexion.CreateCommand())
+        {
+            // Fuera de la transacción a propósito: PRAGMA foreign_keys no tiene efecto adentro.
+            apagarFks.CommandText = "PRAGMA foreign_keys = OFF;";
+            apagarFks.ExecuteNonQuery();
+        }
+
+        try
+        {
+            using var transaccion = conexion.BeginTransaction();
+
+            using (var crear = conexion.CreateCommand())
+            {
+                crear.Transaction = transaccion;
+                crear.CommandText =
+                    """
+                    CREATE TABLE Configuraciones_Nueva (
+                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        EmisorId INTEGER NOT NULL REFERENCES EntidadesConocidas (Id),
+                        TipoId INTEGER NOT NULL REFERENCES EntidadesConocidas (Id),
+                        CarpetaDestino TEXT NOT NULL,
+                        FormatoCarpeta TEXT NOT NULL CHECK (FormatoCarpeta IN ('Directo', 'Anio', 'AnioSemestre', 'AnioTrimestre', 'AnioMes', 'AnioQuincena', 'AnioSemana', 'AnioMesDia', 'MesSinAnio', 'SemanaDelMes', 'Personalizado')),
+                        PatronCarpeta TEXT NULL,
+                        Renombrar INTEGER NOT NULL DEFAULT 0,
+                        AbrirDespuesDeGuardar INTEGER NOT NULL DEFAULT 0,
+                        UNIQUE (EmisorId, TipoId)
+                    );
+
+                    INSERT INTO Configuraciones_Nueva (Id, EmisorId, TipoId, CarpetaDestino, FormatoCarpeta, PatronCarpeta, Renombrar, AbrirDespuesDeGuardar)
+                    SELECT Id, EmisorId, TipoId, CarpetaDestino, FormatoCarpeta, PatronCarpeta, Renombrar, AbrirDespuesDeGuardar
+                    FROM Configuraciones;
+
+                    DROP TABLE Configuraciones;
+
+                    ALTER TABLE Configuraciones_Nueva RENAME TO Configuraciones;
+                    """;
+                crear.ExecuteNonQuery();
+            }
+
+            transaccion.Commit();
+        }
+        finally
+        {
+            using var encenderFks = conexion.CreateCommand();
+            encenderFks.CommandText = "PRAGMA foreign_keys = ON;";
+            encenderFks.ExecuteNonQuery();
+        }
+
+        using var verificarFks = conexion.CreateCommand();
+        verificarFks.CommandText = "PRAGMA foreign_key_check;";
+        using var lector = verificarFks.ExecuteReader();
+        if (lector.Read())
+        {
+            throw new InvalidOperationException("La migración de Configuraciones rompió una referencia existente.");
+        }
     }
 
     /// <summary>
