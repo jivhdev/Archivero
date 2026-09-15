@@ -1,6 +1,6 @@
 Estado actual: En piloto desde 2026-09-13 — pendiente de revisión.
 
-Última actualización del .exe: 2026-09-14, con los 5 puntos de `preguntas/Caso-1.md` (ver `ESTADO.md`).
+Última actualización del .exe: 2026-09-15, con el punto 1 de `preguntas/Caso-2.md` (carpeta observada configurable — ver `ESTADO.md`). El punto 2 de Caso-2 todavía no está incluido.
 
 ## Qué contiene esta carpeta
 - `Archivero.exe`: ejecutable autocontenido de Windows (no requiere .NET instalado). Se abre con doble click.
