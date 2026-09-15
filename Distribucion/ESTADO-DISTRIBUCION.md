@@ -1,5 +1,7 @@
 Estado actual: En piloto desde 2026-09-13 — pendiente de revisión.
 
+Última actualización del .exe: 2026-09-14, con los 5 puntos de `preguntas/Caso-1.md` (ver `ESTADO.md`).
+
 ## Qué contiene esta carpeta
 - `Archivero.exe`: ejecutable autocontenido de Windows (no requiere .NET instalado). Se abre con doble click.
 - `Archivero.pdb`: símbolos de depuración (no hace falta para ejecutarlo).
