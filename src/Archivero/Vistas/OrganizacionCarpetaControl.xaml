@@ -31,6 +31,10 @@
 
         <!-- 3c/3d: ejemplos concretos del patrón (con la fecha de referencia) -->
         <StackPanel Name="PanelPatron" Visibility="Collapsed">
+            <!-- Caso-6, punto 3: el tipo elegido tiene que seguir siendo reelegible sin cancelar
+                 el asistente entero (oculto cuando está bloqueado, vinculando a una config existente). -->
+            <Button Name="BtnCambiarTipo" Content="← Elegir otro tipo de organización" Padding="0" Margin="0,0,0,8"
+                    HorizontalAlignment="Left" Background="Transparent" BorderThickness="0" Cursor="Hand" Click="BtnCambiarTipo_Click"/>
             <TextBlock Name="TxtTipoElegido" FontWeight="Bold" TextWrapping="Wrap" Margin="0,0,0,4"/>
             <TextBlock Name="TxtAvisoFechaHoy" Visibility="Collapsed" Foreground="Gray" TextWrapping="Wrap" Margin="0,0,0,8"
                        Text="Estos ejemplos usan la fecha de hoy — marcá la fecha del documento abajo para ver el ejemplo real."/>
