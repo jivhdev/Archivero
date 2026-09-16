@@ -39,6 +39,12 @@ public class VigilanciaCarpetaService : IDisposable
 
         if (!Directory.Exists(_carpetaObservada))
         {
+            // La carpeta observada ya no existe (se borró o se movió) desde ANTES de que
+            // Archivero arrancara -- no solo mientras corría (ese caso ya lo cubre el evento
+            // Error del FileSystemWatcher, más abajo). Sin este aviso, Archivero se queda
+            // observando nada en silencio total: ningún archivo nuevo se nota nunca, sin
+            // ninguna pista visible de por qué (bug real reportado por Javier).
+            CarpetaObservadaNoDisponible?.Invoke();
             return;
         }
 

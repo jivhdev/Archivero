@@ -50,10 +50,17 @@ public partial class App : System.Windows.Application
         }
 
         var vigilancia = new VigilanciaCarpetaService(carpetaObservada);
-        vigilancia.Iniciar();
 
+        // MainWindow tiene que suscribirse a los eventos de vigilancia (CarpetaObservadaNoDisponible
+        // en particular) ANTES de Iniciar(): si la carpeta observada ya no existe desde el
+        // arranque, Iniciar() avisa de inmediato, y ese aviso se perdía en silencio porque
+        // todavía no había nadie escuchando (bug real: la carpeta desapareció y Archivero nunca
+        // dijo nada, ni siquiera al reabrirlo).
         var ventanaPrincipal = new MainWindow(carpetaObservada, vigilancia);
         MainWindow = ventanaPrincipal;
+
+        vigilancia.Iniciar();
+
         ventanaPrincipal.Show();
     }
 
