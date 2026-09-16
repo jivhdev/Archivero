@@ -102,7 +102,9 @@ public partial class MainWindow : Window
     {
         System.Windows.MessageBox.Show(
             this,
-            "La carpeta observada ya no está disponible (se movió o se borró). Archivero no puede seguir vigilándola hasta que vuelva a estar accesible.",
+            $"La carpeta observada ya no está disponible (se movió o se borró):\n{_carpetaObservada}\n\n" +
+            "Archivero no puede seguir vigilándola hasta que vuelva a estar accesible. Podés recrearla con ese mismo nombre y ruta, " +
+            "o usar el botón \"Cambiar…\" para elegir otra.",
             "Archivero", MessageBoxButton.OK, MessageBoxImage.Warning);
     }
 
