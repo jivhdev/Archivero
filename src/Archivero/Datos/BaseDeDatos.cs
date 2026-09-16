@@ -84,6 +84,12 @@ public static class BaseDeDatos
                 FormatoCarpeta TEXT NOT NULL,
                 PatronCarpeta TEXT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS GuardadosRecientes (
+                Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                RutaFinal TEXT NOT NULL,
+                FechaHora TEXT NOT NULL
+            );
             """;
         comando.ExecuteNonQuery();
 

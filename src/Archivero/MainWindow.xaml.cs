@@ -8,8 +8,8 @@ using Archivero.Vistas;
 
 namespace Archivero;
 
-/// <summary>Una entrada del historial de "Guardados automáticamente" (Caso-1, punto 4).</summary>
-public record GuardadoReciente(DateTime Hora, string RutaFinal)
+/// <summary>Fila de "Guardados automáticamente" ya lista para mostrar (el repositorio no formatea texto de interfaz).</summary>
+public record GuardadoRecienteFila(DateTime Hora, string RutaFinal)
 {
     public string Resumen => $"{Hora:HH:mm:ss} — {Path.GetFileName(RutaFinal)} → {RutaFinal}";
 }
@@ -19,10 +19,10 @@ public partial class MainWindow : Window
     private readonly PendienteRepository _pendientes = new();
     private readonly ConfiguracionDocumentoRepository _configuraciones = new();
     private readonly CarpetaObservadaService _servicioCarpeta = new(new ConfiguracionRepository());
+    private readonly GuardadoRecienteRepository _guardadosRecientes = new();
     private VigilanciaCarpetaService _vigilancia;
     private string _carpetaObservada;
     private readonly TrayIconService _bandeja = new();
-    private readonly List<GuardadoReciente> _guardadosRecientes = [];
     private bool _permitirCierre;
 
     public MainWindow(string carpetaObservada, VigilanciaCarpetaService vigilancia)
@@ -38,6 +38,7 @@ public partial class MainWindow : Window
         _bandeja.SalirSolicitado += () => Dispatcher.Invoke(SalirDeVerdad);
 
         CargarPendientes();
+        CargarGuardadosRecientes();
     }
 
     private void SuscribirEventosVigilancia()
@@ -82,14 +83,20 @@ public partial class MainWindow : Window
 
     private void AgregarAGuardadosRecientes(string rutaFinal)
     {
-        _guardadosRecientes.Insert(0, new GuardadoReciente(DateTime.Now, rutaFinal));
-        ListaGuardados.ItemsSource = null;
-        ListaGuardados.ItemsSource = _guardadosRecientes;
+        _guardadosRecientes.Agregar(rutaFinal);
+        CargarGuardadosRecientes();
+    }
+
+    private void CargarGuardadosRecientes()
+    {
+        ListaGuardados.ItemsSource = _guardadosRecientes.ObtenerTodos()
+            .Select(g => new GuardadoRecienteFila(g.Hora, g.RutaFinal))
+            .ToList();
     }
 
     private void ListaGuardados_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        if (ListaGuardados.SelectedItem is not GuardadoReciente guardado)
+        if (ListaGuardados.SelectedItem is not GuardadoRecienteFila guardado)
         {
             return;
         }
