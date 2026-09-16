@@ -39,7 +39,12 @@
 
             <!-- Caso-4, punto 1: los PDF sin texto extraible tienen su propia lista, separada de
                  "Pendientes por reconocer": nunca aparecen mezclados con esa. -->
-            <TextBlock Grid.Row="0" Text="Pendientes de distribuir" FontWeight="Bold" Margin="0,0,0,8"/>
+            <DockPanel Grid.Row="0" Margin="0,0,0,8">
+                <!-- Caso-6, punto 1: refresco manual, además del arreglo de fondo; por si algo
+                     puntual no se refleja solo, el usuario nunca depende de reabrir Archivero. -->
+                <Button DockPanel.Dock="Right" Content="Recargar" Padding="8,2" Click="BtnRecargarPendientesDistribucion_Click"/>
+                <TextBlock Text="Pendientes de distribuir" FontWeight="Bold" VerticalAlignment="Center"/>
+            </DockPanel>
             <ListBox Grid.Row="1" Name="ListaPendientesDistribucion" DisplayMemberPath="NombreArchivo" MouseDoubleClick="ListaPendientesDistribucion_MouseDoubleClick"/>
         </Grid>
 

@@ -162,6 +162,8 @@ public partial class MainWindow : Window
         CargarPendientes();
     }
 
+    private void BtnRecargarPendientesDistribucion_Click(object sender, RoutedEventArgs e) => CargarPendientes();
+
     private void ListaPendientesDistribucion_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
         if (ListaPendientesDistribucion.SelectedItem is not ArchivoPendiente pendiente)
