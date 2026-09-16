@@ -166,54 +166,6 @@ public class CoincidenciaAutomaticaServiceTests : IDisposable
         };
     }
 
-    [Fact]
-    public void BuscarConfiguracionSinTextoQueCoincide_ConUnaSolaConfiguracionSinTexto_LaDevuelve()
-    {
-        var conTexto = CrearConfiguracion("Banco de Prueba SA", "Resumen de cuenta");
-        var sinTexto = ConfiguracionConPatronSinMarcas("Proveedor Escaneado", "Recibo escaneado");
-
-        var resultado = CoincidenciaAutomaticaService.BuscarConfiguracionSinTextoQueCoincide([conTexto, sinTexto]);
-
-        Assert.NotNull(resultado);
-        Assert.Equal("Proveedor Escaneado", resultado!.Emisor);
-        Assert.Empty(resultado.Patrones.Single().Marcas);
-    }
-
-    [Fact]
-    public void BuscarConfiguracionSinTextoQueCoincide_SinNingunaConfiguracionSinTexto_DevuelveNull()
-    {
-        var conTexto = CrearConfiguracion("Banco de Prueba SA", "Resumen de cuenta");
-
-        var resultado = CoincidenciaAutomaticaService.BuscarConfiguracionSinTextoQueCoincide([conTexto]);
-
-        Assert.Null(resultado);
-    }
-
-    [Fact]
-    public void BuscarConfiguracionSinTextoQueCoincide_ConMasDeUnaConfiguracionSinTexto_EsAmbiguoYDevuelveNull()
-    {
-        // Sin texto que comparar, no hay forma de distinguir a cual corresponde: nunca se
-        // adivina entre varias, se deja pendiente para que el usuario decida.
-        var primera = ConfiguracionConPatronSinMarcas("Proveedor Uno", "Recibo escaneado");
-        var segunda = ConfiguracionConPatronSinMarcas("Proveedor Dos", "Boleta escaneada");
-
-        var resultado = CoincidenciaAutomaticaService.BuscarConfiguracionSinTextoQueCoincide([primera, segunda]);
-
-        Assert.Null(resultado);
-    }
-
-    private static ConfiguracionDocumento ConfiguracionConPatronSinMarcas(string emisor, string tipo) => new()
-    {
-        Id = 2,
-        Emisor = emisor,
-        Tipo = tipo,
-        CarpetaDestino = @"C:\Destino",
-        FormatoCarpeta = FormatoCarpeta.Directo,
-        PatronCarpeta = null,
-        Renombrar = false,
-        Patrones = [new PatronReconocimiento(1, [])]
-    };
-
     public void Dispose()
     {
         Directory.Delete(_carpetaTemporal, recursive: true);

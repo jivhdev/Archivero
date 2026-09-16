@@ -78,3 +78,11 @@ public record ConfiguracionDocumento
     /// <summary>Caso-1, punto 5: si está activo, abre el archivo en el visor de PDF del sistema apenas se guarda solo.</summary>
     public bool AbrirDespuesDeGuardar { get; init; }
 }
+
+/// <summary>
+/// Una ubicación guardada desde el flujo de PDFs sin texto extraíble (Caso-4, punto 3b) —
+/// deliberadamente separada de <see cref="ConfiguracionDocumento"/>: acá no hay Emisor/Tipo ni
+/// reconocimiento automático, solo un lugar ya usado antes al que volver rápido sin repetir el
+/// asistente ni navegar a mano por el explorador de Windows.
+/// </summary>
+public record UbicacionSinTexto(int Id, string CarpetaMadre, FormatoCarpeta Formato, string? Patron);

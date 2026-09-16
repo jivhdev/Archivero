@@ -71,7 +71,12 @@ public partial class MainWindow : Window
     private void CargarPendientes()
     {
         var pendientes = _pendientes.ObtenerTodos();
-        ListaPendientes.ItemsSource = pendientes;
+
+        // Caso-4, punto 1: los PDF sin texto extraible tienen su propia lista ("Pendientes de
+        // distribuir"), separada de "Pendientes por reconocer" -- nunca se mezclan.
+        ListaPendientes.ItemsSource = pendientes.Where(p => p.Motivo != MotivoPendiente.SinTextoExtraible).ToList();
+        ListaPendientesDistribucion.ItemsSource = pendientes.Where(p => p.Motivo == MotivoPendiente.SinTextoExtraible).ToList();
+
         _bandeja.ActualizarPendientes(pendientes.Count > 0);
     }
 
@@ -146,16 +151,24 @@ public partial class MainWindow : Window
         {
             AbrirCreacionDePeriodo(pendiente.RutaArchivo);
         }
-        else if (pendiente.Motivo == MotivoPendiente.SinTextoExtraible)
-        {
-            var identificarSinTexto = new IdentificarSinTextoWindow(pendiente.RutaArchivo) { Owner = this };
-            identificarSinTexto.ShowDialog();
-        }
         else
         {
             var asistente = new IdentificarDocumentoWindow(pendiente.RutaArchivo) { Owner = this };
             asistente.ShowDialog();
         }
+
+        CargarPendientes();
+    }
+
+    private void ListaPendientesDistribucion_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (ListaPendientesDistribucion.SelectedItem is not ArchivoPendiente pendiente)
+        {
+            return;
+        }
+
+        var identificarSinTexto = new IdentificarSinTextoWindow(pendiente.RutaArchivo) { Owner = this };
+        identificarSinTexto.ShowDialog();
 
         CargarPendientes();
     }

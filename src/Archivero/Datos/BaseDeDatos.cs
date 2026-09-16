@@ -77,6 +77,13 @@ public static class BaseDeDatos
                 RutaArchivo TEXT PRIMARY KEY,
                 Datos TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS UbicacionesSinTexto (
+                Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                CarpetaMadre TEXT NOT NULL,
+                FormatoCarpeta TEXT NOT NULL,
+                PatronCarpeta TEXT NULL
+            );
             """;
         comando.ExecuteNonQuery();
 
