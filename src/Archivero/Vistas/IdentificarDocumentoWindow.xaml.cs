@@ -12,14 +12,11 @@ public partial class IdentificarDocumentoWindow : Window
 {
     private enum Paso { EmisorTipo, Carpeta, Organizacion, NombreArchivo, Confirmar }
 
-    private enum SubpanelOrganizacion { AccesosRapidos, ListaCompleta, Enlazar, Patron }
-
     private readonly string _rutaArchivo;
     private readonly EntidadRepository _entidades = new();
     private readonly ConfiguracionDocumentoRepository _configuraciones = new();
     private readonly PendienteRepository _pendientes = new();
     private readonly BorradorRepository _borradores = new();
-    private readonly AccesoRapidoRepository _accesosRapidos = new();
     private readonly Dictionary<CampoMarca, Marca> _marcas = new();
     private readonly Stack<Paso> _pasosRecorridos = new();
 
@@ -38,15 +35,17 @@ public partial class IdentificarDocumentoWindow : Window
     private ConfiguracionDocumento? _configuracionExistente;
     private readonly (ConfiguracionDocumento Configuracion, int PatronId)? _edicion;
 
-    // Estado en progreso del Paso 3 (Caso-3): tipo elegido y ejemplo de patrón seleccionado.
-    private FormatoCarpeta? _tipoOrganizacion;
-    private string? _patronSeleccionado;
-    private FormatoCarpeta _tipoPendienteDeEnlazar;
+    // Precarga para ControlOrganizacion (edicion o borrador restaurado): se aplica una sola vez,
+    // la primera vez que se llega al Paso.Organizacion (ver PrepararVistaOrganizacion).
+    private bool _organizacionInicializada;
+    private FormatoCarpeta? _tipoOrganizacionPrecargado;
+    private string? _patronPrecargadoParaControl;
 
     public IdentificarDocumentoWindow(string rutaArchivo)
     {
         InitializeComponent();
         _rutaArchivo = rutaArchivo;
+        ControlOrganizacion.ConfigurarProveedorDeFecha(LeerFechaPreview);
 
         Visor.CargarPdf(rutaArchivo);
         Visor.MarcaRealizada += Visor_MarcaRealizada;
@@ -89,6 +88,7 @@ public partial class IdentificarDocumentoWindow : Window
         _rutaArchivo = rutaArchivo;
         _edicion = (configuracion, patron.Id);
         BtnPosponer.Visibility = Visibility.Collapsed;
+        ControlOrganizacion.ConfigurarProveedorDeFecha(LeerFechaPreview);
 
         Visor.CargarPdf(rutaArchivo);
         Visor.MarcaRealizada += Visor_MarcaRealizada;
@@ -120,12 +120,8 @@ public partial class IdentificarDocumentoWindow : Window
 
         RbGuardarDirecto.IsChecked = _formato == FormatoCarpeta.Directo;
         RbGuardarSubcarpetas.IsChecked = _formato != FormatoCarpeta.Directo;
-        _tipoOrganizacion = _formato == FormatoCarpeta.Directo ? null : _formato;
-        _patronSeleccionado = _patronCarpeta;
-        if (_formato == FormatoCarpeta.Personalizado)
-        {
-            TxtPatronPersonalizado.Text = _patronCarpeta ?? string.Empty;
-        }
+        _tipoOrganizacionPrecargado = _formato == FormatoCarpeta.Directo ? null : _formato;
+        _patronPrecargadoParaControl = _patronCarpeta;
 
         RbMantenerNombre.IsChecked = !_renombrar;
         RbExtraerNombre.IsChecked = _renombrar;
@@ -152,7 +148,7 @@ public partial class IdentificarDocumentoWindow : Window
             else
             {
                 RbGuardarSubcarpetas.IsChecked = true;
-                _tipoOrganizacion = formato;
+                _tipoOrganizacionPrecargado = formato;
             }
         }
         else if (borrador.GuardaEnSubcarpetas == true)
@@ -162,11 +158,7 @@ public partial class IdentificarDocumentoWindow : Window
 
         if (borrador.PatronCarpeta is not null)
         {
-            _patronSeleccionado = borrador.PatronCarpeta;
-            if (_tipoOrganizacion == FormatoCarpeta.Personalizado)
-            {
-                TxtPatronPersonalizado.Text = borrador.PatronCarpeta;
-            }
+            _patronPrecargadoParaControl = borrador.PatronCarpeta;
         }
 
         if (borrador.Renombrar is not null)
@@ -188,7 +180,7 @@ public partial class IdentificarDocumentoWindow : Window
             return;
         }
 
-        var formatoElegido = RbGuardarDirecto.IsChecked == true ? FormatoCarpeta.Directo : _tipoOrganizacion;
+        var formatoElegido = RbGuardarDirecto.IsChecked == true ? FormatoCarpeta.Directo : ControlOrganizacion.FormatoElegido;
 
         var renombrarElegido = RbMantenerNombre.IsChecked == true ? false
             : RbExtraerNombre.IsChecked == true ? true
@@ -369,9 +361,9 @@ public partial class IdentificarDocumentoWindow : Window
 
         // Caso-3, punto 3d: apenas se marca la fecha del documento, los ejemplos del patrón y la
         // vista previa dejan de usar la fecha de hoy y pasan a usar la fecha real detectada.
-        if (campo == CampoMarca.Fecha && _paso == Paso.Organizacion && PanelPatron.Visibility == Visibility.Visible)
+        if (campo == CampoMarca.Fecha && _paso == Paso.Organizacion)
         {
-            RefrescarEjemplosPorFecha();
+            ControlOrganizacion.RefrescarPorCambioDeFecha();
         }
 
         if (PanelPreview.Visibility == Visibility.Visible)
@@ -430,248 +422,36 @@ public partial class IdentificarDocumentoWindow : Window
     }
 
     // ----- Paso 3 (Caso-3): organización de subcarpetas -----
+    // El tipo/patrón (accesos rápidos, lista completa, ejemplos) vive en ControlOrganizacion
+    // (Caso-4 lo reutiliza tal cual); acá solo queda lo propio de esta ventana: cuándo mostrarlo
+    // por primera vez, y el marcado de la fecha sobre el PDF.
 
     private void PrepararVistaOrganizacion()
     {
+        if (_organizacionInicializada)
+        {
+            return;
+        }
+
+        _organizacionInicializada = true;
+
         if (_configuracionExistente is not null)
         {
             // Vinculando a una configuración existente: el tipo/patrón ya están definidos por
             // ella; solo se muestra (bloqueado) y se marca la fecha en este documento.
-            _tipoOrganizacion = _configuracionExistente.FormatoCarpeta;
-            _patronSeleccionado = _configuracionExistente.PatronCarpeta;
-            if (_configuracionExistente.FormatoCarpeta == FormatoCarpeta.Personalizado)
-            {
-                TxtPatronPersonalizado.Text = _configuracionExistente.PatronCarpeta ?? string.Empty;
-            }
-
-            RenderPanelPatron(bloqueado: true);
-            MostrarSubpanelOrganizacion(SubpanelOrganizacion.Patron);
-            return;
-        }
-
-        if (_tipoOrganizacion is not null)
-        {
-            RenderPanelPatron(bloqueado: false);
-            MostrarSubpanelOrganizacion(SubpanelOrganizacion.Patron);
-            return;
-        }
-
-        CargarAccesosRapidos();
-        MostrarSubpanelOrganizacion(SubpanelOrganizacion.AccesosRapidos);
-    }
-
-    private void MostrarSubpanelOrganizacion(SubpanelOrganizacion subpanel)
-    {
-        PanelAccesosRapidos.Visibility = subpanel == SubpanelOrganizacion.AccesosRapidos ? Visibility.Visible : Visibility.Collapsed;
-        PanelListaCompleta.Visibility = subpanel == SubpanelOrganizacion.ListaCompleta ? Visibility.Visible : Visibility.Collapsed;
-        PanelEnlazar.Visibility = subpanel == SubpanelOrganizacion.Enlazar ? Visibility.Visible : Visibility.Collapsed;
-        PanelPatron.Visibility = subpanel == SubpanelOrganizacion.Patron ? Visibility.Visible : Visibility.Collapsed;
-    }
-
-    private void CargarAccesosRapidos()
-    {
-        ContenedorAccesosRapidos.Children.Clear();
-
-        var accesos = _accesosRapidos.Obtener();
-        TxtSinAccesosRapidos.Visibility = accesos.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-
-        foreach (var acceso in accesos)
-        {
-            var boton = new Button
-            {
-                Content = OrganizacionCarpetaService.NombreDe(acceso),
-                Tag = acceso,
-                Padding = new Thickness(6, 4, 6, 4),
-                Margin = new Thickness(0, 0, 0, 6)
-            };
-            boton.Click += (_, _) => SeleccionarTipo((FormatoCarpeta)boton.Tag);
-            ContenedorAccesosRapidos.Children.Add(boton);
-        }
-    }
-
-    private void BtnVerTodas_Click(object sender, RoutedEventArgs e)
-    {
-        ContenedorListaCompleta.Children.Clear();
-
-        foreach (var tipo in OrganizacionCarpetaService.TodosLosTipos.Concat([OrganizacionCarpetaService.OpcionPersonalizada]))
-        {
-            var boton = new Button
-            {
-                Content = tipo.Nombre,
-                Tag = tipo.Formato,
-                Padding = new Thickness(6, 4, 6, 4),
-                Margin = new Thickness(0, 0, 0, 6)
-            };
-            boton.Click += (_, _) => IniciarEnlazado((FormatoCarpeta)boton.Tag);
-            ContenedorListaCompleta.Children.Add(boton);
-        }
-
-        MostrarSubpanelOrganizacion(SubpanelOrganizacion.ListaCompleta);
-    }
-
-    private void BtnCancelarListaCompleta_Click(object sender, RoutedEventArgs e) =>
-        MostrarSubpanelOrganizacion(SubpanelOrganizacion.AccesosRapidos);
-
-    /// <summary>
-    /// Caso-3, punto 3b: al elegir un tipo de la lista completa, preguntar a qué acceso rápido
-    /// lo quiere enlazar (reemplazar uno actual, o agregarlo como nuevo — sin máximo, decisión
-    /// de Javier). Si el tipo ya está enlazado, se continúa directo sin preguntar nada.
-    /// </summary>
-    private void IniciarEnlazado(FormatoCarpeta tipo)
-    {
-        var accesos = _accesosRapidos.Obtener();
-        if (accesos.Contains(tipo))
-        {
-            SeleccionarTipo(tipo);
-            return;
-        }
-
-        _tipoPendienteDeEnlazar = tipo;
-
-        ContenedorReemplazos.Children.Clear();
-        for (var i = 0; i < accesos.Count; i++)
-        {
-            var indice = i;
-            var boton = new Button
-            {
-                Content = $"Reemplazar \"{OrganizacionCarpetaService.NombreDe(accesos[indice])}\"",
-                Padding = new Thickness(6, 4, 6, 4),
-                Margin = new Thickness(0, 0, 0, 6)
-            };
-            boton.Click += (_, _) => EnlazarReemplazando(indice);
-            ContenedorReemplazos.Children.Add(boton);
-        }
-
-        TxtTipoPendienteEnlazar.Text = $"Elegiste: {OrganizacionCarpetaService.NombreDe(tipo)}";
-        TxtPreguntaEnlazar.Text = accesos.Count > 0
-            ? "¿Con cuál de tus accesos rápidos actuales querés reemplazar esta opción?"
-            : "¿Querés dejarla como acceso rápido para las próximas veces?";
-
-        MostrarSubpanelOrganizacion(SubpanelOrganizacion.Enlazar);
-    }
-
-    private void EnlazarReemplazando(int indice)
-    {
-        var accesos = _accesosRapidos.Obtener();
-        if (indice >= 0 && indice < accesos.Count)
-        {
-            accesos[indice] = _tipoPendienteDeEnlazar;
-            _accesosRapidos.Guardar(accesos);
-        }
-
-        SeleccionarTipo(_tipoPendienteDeEnlazar);
-    }
-
-    private void BtnAgregarAccesoNuevo_Click(object sender, RoutedEventArgs e)
-    {
-        var accesos = _accesosRapidos.Obtener();
-        if (!accesos.Contains(_tipoPendienteDeEnlazar))
-        {
-            accesos.Add(_tipoPendienteDeEnlazar);
-            _accesosRapidos.Guardar(accesos);
-        }
-
-        SeleccionarTipo(_tipoPendienteDeEnlazar);
-    }
-
-    private void BtnCancelarEnlazar_Click(object sender, RoutedEventArgs e) =>
-        MostrarSubpanelOrganizacion(SubpanelOrganizacion.ListaCompleta);
-
-    private void SeleccionarTipo(FormatoCarpeta tipo)
-    {
-        if (_tipoOrganizacion != tipo)
-        {
-            _patronSeleccionado = null;
-        }
-
-        _tipoOrganizacion = tipo;
-        RenderPanelPatron(bloqueado: false);
-        MostrarSubpanelOrganizacion(SubpanelOrganizacion.Patron);
-
-        if (PanelPreview.Visibility == Visibility.Visible)
-        {
-            ActualizarPreview();
-        }
-    }
-
-    /// <summary>
-    /// Arma la vista del punto 3c/3d: ejemplos concretos del tipo elegido (generados con la
-    /// fecha de referencia real — la del documento si ya se marcó, o la de hoy mientras tanto),
-    /// el campo de patrón personalizado si corresponde, y el marcado de la fecha.
-    /// </summary>
-    private void RenderPanelPatron(bool bloqueado)
-    {
-        var tipo = _tipoOrganizacion;
-
-        if (tipo is null)
-        {
-            return;
-        }
-
-        var (fechaReferencia, fechaEsSupuesta) = LeerFechaPreview();
-
-        ContenedorEjemplos.Children.Clear();
-        PanelPatronPersonalizado.Visibility = tipo == FormatoCarpeta.Personalizado ? Visibility.Visible : Visibility.Collapsed;
-        PanelMarcarFecha.Visibility = tipo == FormatoCarpeta.Directo ? Visibility.Collapsed : Visibility.Visible;
-        TxtFechaOpcional.Visibility = tipo is FormatoCarpeta.MesSinAnio or FormatoCarpeta.SemanaDelMes
-            ? Visibility.Visible
-            : Visibility.Collapsed;
-        TxtAvisoFechaHoy.Visibility = tipo != FormatoCarpeta.Directo && fechaEsSupuesta ? Visibility.Visible : Visibility.Collapsed;
-
-        if (tipo == FormatoCarpeta.Directo)
-        {
-            TxtTipoElegido.Text = "Directo en la carpeta madre — sin subcarpetas.";
-        }
-        else if (tipo == FormatoCarpeta.Personalizado)
-        {
-            TxtTipoElegido.Text = "Patrón personalizado — escribilo vos a mano.";
-            ActualizarEjemploPersonalizado();
+            ControlOrganizacion.Iniciar(_configuracionExistente.FormatoCarpeta, _configuracionExistente.PatronCarpeta, bloqueado: true);
         }
         else
         {
-            TxtTipoElegido.Text = $"{OrganizacionCarpetaService.NombreDe(tipo.Value)} — ¿cuál de estos ejemplos se parece a lo que ya usás?";
-
-            var ejemplos = OrganizacionCarpetaService.ObtenerEjemplos(tipo.Value, fechaReferencia);
-
-            // En modo edición el patrón guardado puede ser uno que ya no está entre los ejemplos
-            // (ej. uno detectado por evidencia antes de Caso-3, como "'Año 'yyyy"): se conserva
-            // como opción adicional para no obligar a cambiarlo.
-            if (_patronSeleccionado is not null && ejemplos.All(e => e.Patron != _patronSeleccionado))
-            {
-                ejemplos.Insert(0, new EjemploPatron(
-                    _patronSeleccionado,
-                    OrganizacionCarpetaService.FormatearEjemplo(_patronSeleccionado, fechaReferencia) + " (el actual)"));
-            }
-
-            foreach (var ejemplo in ejemplos)
-            {
-                var radio = new RadioButton
-                {
-                    Content = ejemplo.Texto,
-                    Tag = ejemplo.Patron,
-                    GroupName = "EjemplosPatron",
-                    Margin = new Thickness(0, 0, 0, 6),
-                    IsEnabled = !bloqueado
-                };
-                radio.Checked += Ejemplo_Checked;
-                ContenedorEjemplos.Children.Add(radio);
-
-                if (ejemplo.Patron == _patronSeleccionado || ejemplos.Count == 1)
-                {
-                    radio.IsChecked = true;
-                }
-            }
+            ControlOrganizacion.Iniciar(_tipoOrganizacionPrecargado, _patronPrecargadoParaControl, bloqueado: false);
         }
 
-        TxtPatronPersonalizado.IsEnabled = !bloqueado;
+        ActualizarVisibilidadMarcarFecha();
     }
 
-    private void Ejemplo_Checked(object sender, RoutedEventArgs e)
+    private void ControlOrganizacion_SeleccionCambiada()
     {
-        if (sender is RadioButton { Tag: string patron })
-        {
-            _patronSeleccionado = patron;
-        }
+        ActualizarVisibilidadMarcarFecha();
 
         if (PanelPreview.Visibility == Visibility.Visible)
         {
@@ -679,41 +459,10 @@ public partial class IdentificarDocumentoWindow : Window
         }
     }
 
-    private void RefrescarEjemplosPorFecha()
+    private void ActualizarVisibilidadMarcarFecha()
     {
-        if (_tipoOrganizacion is null)
-        {
-            return;
-        }
-
-        RenderPanelPatron(bloqueado: _configuracionExistente is not null);
-    }
-
-    private void TxtPatronPersonalizado_TextChanged(object sender, TextChangedEventArgs e)
-    {
-        ActualizarEjemploPersonalizado();
-
-        if (PanelPreview.Visibility == Visibility.Visible)
-        {
-            ActualizarPreview();
-        }
-    }
-
-    private void ActualizarEjemploPersonalizado()
-    {
-        var texto = TxtPatronPersonalizado.Text.Trim();
-        if (texto.Length == 0)
-        {
-            TxtEjemploPersonalizado.Text = string.Empty;
-            return;
-        }
-
-        var (fechaReferencia, _) = LeerFechaPreview();
-        var patron = OrganizacionCarpetaService.NormalizarPatronPersonalizado(texto);
-
-        TxtEjemploPersonalizado.Text = OrganizacionCarpetaService.EsPatronValido(patron, fechaReferencia, out var error)
-            ? "Ejemplo: " + OrganizacionCarpetaService.FormatearEjemplo(patron, fechaReferencia)
-            : error;
+        PanelMarcarFecha.Visibility = ControlOrganizacion.FechaEsAplicable ? Visibility.Visible : Visibility.Collapsed;
+        TxtFechaOpcional.Visibility = ControlOrganizacion.FechaEsOpcional ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void OpcionNombre_Changed(object sender, RoutedEventArgs e)
@@ -826,7 +575,7 @@ public partial class IdentificarDocumentoWindow : Window
 
         if (RbGuardarSubcarpetas.IsChecked == true)
         {
-            return _tipoOrganizacion;
+            return ControlOrganizacion.FormatoElegido;
         }
 
         return null;
@@ -845,13 +594,7 @@ public partial class IdentificarDocumentoWindow : Window
             return _configuracionExistente.PatronCarpeta;
         }
 
-        if (formato == FormatoCarpeta.Personalizado)
-        {
-            var texto = TxtPatronPersonalizado.Text.Trim();
-            return texto.Length == 0 ? null : OrganizacionCarpetaService.NormalizarPatronPersonalizado(texto);
-        }
-
-        return _patronSeleccionado;
+        return ControlOrganizacion.PatronElegido;
     }
 
     private (DateTime Fecha, bool EsSupuesta) LeerFechaPreview()
@@ -999,41 +742,14 @@ public partial class IdentificarDocumentoWindow : Window
             case Paso.Organizacion:
                 if (_configuracionExistente is null)
                 {
-                    if (_tipoOrganizacion is null)
+                    if (!ControlOrganizacion.Validar(out var errorOrganizacion))
                     {
-                        MostrarError("Elegir un tipo de organización para las subcarpetas.");
+                        MostrarError(errorOrganizacion!);
                         return;
                     }
 
-                    if (_tipoOrganizacion == FormatoCarpeta.Directo)
-                    {
-                        _formato = FormatoCarpeta.Directo;
-                        _patronCarpeta = null;
-                    }
-                    else
-                    {
-                        var patron = LeerPatronElegido();
-                        if (string.IsNullOrWhiteSpace(patron))
-                        {
-                            MostrarError(_tipoOrganizacion == FormatoCarpeta.Personalizado
-                                ? "Escribir el patrón personalizado."
-                                : "Elegir cuál de los ejemplos de patrón se parece a tus carpetas.");
-                            return;
-                        }
-
-                        if (_tipoOrganizacion == FormatoCarpeta.Personalizado)
-                        {
-                            var (fechaReferencia, _) = LeerFechaPreview();
-                            if (!OrganizacionCarpetaService.EsPatronValido(patron, fechaReferencia, out var error))
-                            {
-                                MostrarError(error!);
-                                return;
-                            }
-                        }
-
-                        _formato = _tipoOrganizacion.Value;
-                        _patronCarpeta = patron;
-                    }
+                    _formato = ControlOrganizacion.FormatoElegido!.Value;
+                    _patronCarpeta = _formato == FormatoCarpeta.Directo ? null : ControlOrganizacion.PatronElegido;
                 }
 
                 // La marca de fecha es obligatoria salvo para "directo en la carpeta" (SPEC

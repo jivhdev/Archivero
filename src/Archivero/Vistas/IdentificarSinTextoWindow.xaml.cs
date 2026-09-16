@@ -1,137 +1,289 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media.Imaging;
 using Archivero.Datos;
 using Archivero.Servicios;
-using Archivero.Servicios.Pdf;
 
 namespace Archivero.Vistas;
 
 /// <summary>
-/// Identificación de un PDF sin texto extraíble (Caso-1, punto 1): no se puede marcar nada por
-/// coordenadas, así que Emisor y Tipo se escriben a mano, y la carpeta se elige como en
-/// cualquier configuración. Sin fecha ni nombre extraíbles, la configuración queda siempre en
-/// "Directo" y sin renombrar — solo ubicación automática para los próximos documentos iguales.
+/// Identificación de un PDF sin texto extraíble (Caso-4, reemplaza por completo el flujo del
+/// Caso-1 punto 1): no hay Emisor/Tipo ni reconocimiento automático futuro -- solo elegir dónde
+/// guardar, reutilizando el asistente de tipo/patrón de Caso-3 (<see cref="OrganizacionCarpetaControl"/>),
+/// o volviendo a una ubicación ya usada antes.
+///
+/// Nota de implementación: Caso-4 pide "marcar la fecha sobre el PDF de la misma forma que ya se
+/// hace para otros campos", pero un documento sin texto extraíble no tiene NADA que extraer de
+/// una coordenada (por definición: <see cref="Archivero.Servicios.Pdf.LectorPdf.TieneTextoExtraible"/>
+/// ya descartó el documento entero). Marcar un rectángulo ahí no puede producir un valor real, así
+/// que la fecha se escribe a mano en un campo de texto en vez de marcarse por coordenadas.
 /// </summary>
 public partial class IdentificarSinTextoWindow : Window
 {
+    private class FilaUbicacion(UbicacionSinTexto ubicacion)
+    {
+        public UbicacionSinTexto Ubicacion { get; } = ubicacion;
+        public string Texto { get; } = ubicacion.Formato == FormatoCarpeta.Directo
+            ? ubicacion.CarpetaMadre
+            : $"{ubicacion.CarpetaMadre} — {OrganizacionCarpetaService.NombreDe(ubicacion.Formato)}";
+    }
+
     private readonly string _rutaArchivo;
-    private readonly EntidadRepository _entidades = new();
-    private readonly ConfiguracionDocumentoRepository _configuraciones = new();
     private readonly PendienteRepository _pendientes = new();
-    private string _carpetaDestino = string.Empty;
+    private readonly UbicacionSinTextoRepository _ubicaciones = new();
+
+    private string _carpetaMadre = string.Empty;
+    private string? _carpetaDestinoFinal;
+
+    private int _nivelesTotales;
+    private int _nivelActual;
+    private string _carpetaNavegacionActual = string.Empty;
 
     public IdentificarSinTextoWindow(string rutaArchivo)
     {
         InitializeComponent();
         _rutaArchivo = rutaArchivo;
 
-        CmbEmisor.ItemsSource = _entidades.Buscar(CategoriaEntidad.Emisor, string.Empty);
-        CmbTipo.ItemsSource = _entidades.Buscar(CategoriaEntidad.Tipo, string.Empty);
+        Visor.CargarPdf(rutaArchivo);
+        ControlOrganizacion.ConfigurarProveedorDeFecha(LeerFechaReferencia);
 
-        try
-        {
-            var pagina = LectorPdf.RenderizarPagina(rutaArchivo, 0);
-            var bitmap = BitmapSource.Create(
-                pagina.Ancho, pagina.Alto, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null,
-                pagina.PixelesBgra, pagina.Ancho * 4);
-            bitmap.Freeze();
-            ImagenDocumento.Source = bitmap;
-        }
-        catch
-        {
-            // Sin vista previa si no se puede renderizar (ej. imagen en un formato raro): no
-            // bloquea el resto del flujo, igual se puede identificar a mano.
-        }
+        MostrarPanel(PanelElegir);
     }
 
-    private void CmbEmisor_TextChanged(object sender, TextChangedEventArgs e)
+    private void MostrarPanel(FrameworkElement panel)
     {
-        CmbEmisor.ItemsSource = _entidades.Buscar(CategoriaEntidad.Emisor, CmbEmisor.Text);
+        foreach (var p in new FrameworkElement[] { PanelElegir, PanelCarpetaMadre, PanelOrganizacion, PanelVerUbicaciones, PanelNavegar, PanelNombreArchivo })
+        {
+            p.Visibility = p == panel ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        TxtError.Visibility = Visibility.Collapsed;
     }
 
-    private void CmbTipo_TextChanged(object sender, TextChangedEventArgs e)
-    {
-        CmbTipo.ItemsSource = _entidades.Buscar(CategoriaEntidad.Tipo, CmbTipo.Text);
-    }
+    // ----- 3a: Crear ubicación nueva -----
 
-    private void BtnElegirCarpeta_Click(object sender, RoutedEventArgs e)
+    private void BtnCrearUbicacionNueva_Click(object sender, RoutedEventArgs e) => MostrarPanel(PanelCarpetaMadre);
+
+    private void BtnElegirCarpetaMadre_Click(object sender, RoutedEventArgs e)
     {
         using var dialogo = new System.Windows.Forms.FolderBrowserDialog
         {
-            Description = "Elegir la carpeta de destino para este Emisor y Tipo"
+            Description = "Elegir la carpeta madre: la raíz donde va a vivir todo lo de este tipo de documento"
         };
 
-        if (dialogo.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+        if (dialogo.ShowDialog() != System.Windows.Forms.DialogResult.OK)
         {
-            _carpetaDestino = dialogo.SelectedPath;
-            TxtCarpetaDestino.Text = _carpetaDestino;
+            return;
         }
+
+        _carpetaMadre = dialogo.SelectedPath;
+        TxtCarpetaMadre.Text = _carpetaMadre;
+
+        var tieneSubcarpetas = Directory.GetDirectories(_carpetaMadre).Length > 0;
+        if (!tieneSubcarpetas)
+        {
+            var directo = System.Windows.MessageBox.Show(
+                this,
+                "Esta carpeta madre está vacía. ¿Guardar el documento directo ahí, sin subcarpetas?",
+                "Archivero", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+            if (directo == MessageBoxResult.Yes)
+            {
+                _carpetaDestinoFinal = _carpetaMadre;
+                _ubicaciones.ObtenerOCrear(_carpetaMadre, FormatoCarpeta.Directo, null);
+                IrANombreArchivo();
+                return;
+            }
+        }
+
+        ControlOrganizacion.Iniciar(null, null, bloqueado: false);
+        ActualizarVisibilidadMarcarFecha();
+        MostrarPanel(PanelOrganizacion);
+    }
+
+    private void ControlOrganizacion_SeleccionCambiada() => ActualizarVisibilidadMarcarFecha();
+
+    private void ActualizarVisibilidadMarcarFecha()
+    {
+        PanelMarcarFecha.Visibility = ControlOrganizacion.FechaEsAplicable ? Visibility.Visible : Visibility.Collapsed;
+        TxtFechaOpcional.Visibility = ControlOrganizacion.FechaEsOpcional ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void TxtFechaManual_TextChanged(object sender, TextChangedEventArgs e) =>
+        ControlOrganizacion.RefrescarPorCambioDeFecha();
+
+    private (DateTime Fecha, bool EsSupuesta) LeerFechaReferencia()
+    {
+        if (!string.IsNullOrWhiteSpace(TxtFechaManual.Text) && FechaExtraidaService.TryParsear(TxtFechaManual.Text, out var fecha))
+        {
+            return (fecha, false);
+        }
+
+        return (DateTime.Now, true);
+    }
+
+    private void BtnContinuarOrganizacion_Click(object sender, RoutedEventArgs e)
+    {
+        if (!ControlOrganizacion.Validar(out var error))
+        {
+            MostrarError(error!);
+            return;
+        }
+
+        var formato = ControlOrganizacion.FormatoElegido!.Value;
+        var patron = formato == FormatoCarpeta.Directo ? null : ControlOrganizacion.PatronElegido;
+
+        if (ControlOrganizacion.FechaEsAplicable && !ControlOrganizacion.FechaEsOpcional
+            && string.IsNullOrWhiteSpace(TxtFechaManual.Text))
+        {
+            MostrarError("Escribir la fecha del documento.");
+            return;
+        }
+
+        var (fecha, _) = LeerFechaReferencia();
+        var subcarpeta = FormatoCarpetaService.ConstruirSubcarpeta(formato, patron, fecha);
+        _carpetaDestinoFinal = string.IsNullOrEmpty(subcarpeta) ? _carpetaMadre : Path.Combine(_carpetaMadre, subcarpeta);
+
+        _ubicaciones.ObtenerOCrear(_carpetaMadre, formato, patron);
+
+        IrANombreArchivo();
+    }
+
+    // ----- 3b: Ver ubicaciones disponibles -----
+
+    private void BtnVerUbicaciones_Click(object sender, RoutedEventArgs e)
+    {
+        var ubicaciones = _ubicaciones.ObtenerTodas();
+        TxtSinUbicaciones.Visibility = ubicaciones.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        ListaUbicaciones.ItemsSource = ubicaciones.Select(u => new FilaUbicacion(u)).ToList();
+        MostrarPanel(PanelVerUbicaciones);
+    }
+
+    private void BtnVolverAElegir_Click(object sender, RoutedEventArgs e) => MostrarPanel(PanelElegir);
+
+    private void ListaUbicaciones_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (ListaUbicaciones.SelectedItem is not FilaUbicacion fila)
+        {
+            return;
+        }
+
+        var ubicacion = fila.Ubicacion;
+
+        if (ubicacion.Formato == FormatoCarpeta.Directo)
+        {
+            var confirmar = System.Windows.MessageBox.Show(
+                this, $"¿Guardar este documento en:\n{ubicacion.CarpetaMadre}?",
+                "Archivero", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+            if (confirmar == MessageBoxResult.Yes)
+            {
+                _carpetaDestinoFinal = ubicacion.CarpetaMadre;
+                IrANombreArchivo();
+            }
+
+            return;
+        }
+
+        _nivelesTotales = ubicacion.Patron!.Split('\\').Length;
+        _nivelActual = 0;
+        _carpetaNavegacionActual = ubicacion.CarpetaMadre;
+        MostrarNivelNavegacion();
+    }
+
+    /// <summary>
+    /// Navegación por niveles dentro de una ubicación organizada (Caso-4, punto 3b): solo lista
+    /// subcarpetas ya existentes, nivel por nivel -- no hace falta más que eso para ahorrarle al
+    /// usuario el paso de navegar a mano por el explorador de Windows.
+    /// </summary>
+    private void MostrarNivelNavegacion()
+    {
+        TxtRutaNavegacion.Text = _carpetaNavegacionActual;
+
+        var subcarpetas = Directory.GetDirectories(_carpetaNavegacionActual)
+            .Select(Path.GetFileName)
+            .OrderDescending(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        TxtSinSubcarpetas.Visibility = subcarpetas.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        ListaNavegacion.ItemsSource = subcarpetas;
+        MostrarPanel(PanelNavegar);
+    }
+
+    private void ListaNavegacion_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (ListaNavegacion.SelectedItem is not string nombreCarpeta)
+        {
+            return;
+        }
+
+        _carpetaNavegacionActual = Path.Combine(_carpetaNavegacionActual, nombreCarpeta);
+        _nivelActual++;
+
+        if (_nivelActual >= _nivelesTotales)
+        {
+            _carpetaDestinoFinal = _carpetaNavegacionActual;
+            IrANombreArchivo();
+            return;
+        }
+
+        MostrarNivelNavegacion();
+    }
+
+    private void BtnVolverNavegacion_Click(object sender, RoutedEventArgs e) => MostrarPanel(PanelVerUbicaciones);
+
+    // ----- Paso final: nombre de archivo y guardado -----
+
+    private void IrANombreArchivo()
+    {
+        TxtCarpetaDestinoFinal.Text = $"Se va a guardar en: {_carpetaDestinoFinal}";
+        TxtNombreArchivo.Text = Path.GetFileNameWithoutExtension(_rutaArchivo);
+        MostrarPanel(PanelNombreArchivo);
+    }
+
+    private void BtnBorrarNombre_Click(object sender, RoutedEventArgs e) => TxtNombreArchivo.Clear();
+
+    private void BtnSoloNumeros_Click(object sender, RoutedEventArgs e)
+    {
+        TxtNombreArchivo.Text = new string(TxtNombreArchivo.Text.Where(char.IsDigit).ToArray());
     }
 
     private void BtnGuardar_Click(object sender, RoutedEventArgs e)
     {
-        var emisor = CmbEmisor.Text.Trim();
-        var tipo = CmbTipo.Text.Trim();
-
-        if (string.IsNullOrWhiteSpace(emisor) || string.IsNullOrWhiteSpace(tipo))
+        var nombre = TxtNombreArchivo.Text.Trim();
+        if (string.IsNullOrWhiteSpace(nombre))
         {
-            MostrarError("Completar el Emisor y el Tipo.");
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(_carpetaDestino))
-        {
-            MostrarError("Elegir una carpeta de destino.");
+            MostrarError("Escribir un nombre de archivo.");
             return;
         }
 
         try
         {
-            var existente = _configuraciones.BuscarPorEmisorYTipo(emisor, tipo);
-            ConfiguracionDocumento configuracionParaClasificar;
-
-            if (existente is not null)
+            // Para este punto _carpetaDestinoFinal ya es la carpeta exacta (con cualquier
+            // subcarpeta de fecha ya resuelta, o la carpeta navegada a mano): se guarda
+            // "Directo" ahí, renombrando siempre al nombre que el usuario dejó en este paso.
+            var configuracionTemporal = new ConfiguracionDocumento
             {
-                var vincular = System.Windows.MessageBox.Show(
-                    this,
-                    $"Ya existe una configuración guardada para \"{emisor}\" / \"{tipo}\".\n\n" +
-                    "¿Vincular este documento a esa configuración (misma carpeta de destino ya definida)? " +
-                    "Si esa configuración organiza por fecha, los próximos documentos sin texto de este " +
-                    "tipo van a quedar pendientes igualmente (no hay fecha que extraer de una imagen).",
-                    "Archivero", MessageBoxButton.YesNo, MessageBoxImage.Question);
-
-                if (vincular != MessageBoxResult.Yes)
-                {
-                    MostrarError("Corregir el Emisor o el Tipo si no correspondía, o cancelar.");
-                    return;
-                }
-
-                _configuraciones.AgregarPatronAConfiguracionExistente(existente.Id, []);
-                configuracionParaClasificar = existente;
-            }
-            else
-            {
-                var nuevaId = _configuraciones.GuardarNueva(emisor, tipo, _carpetaDestino, FormatoCarpeta.Directo, null, false, []);
-                configuracionParaClasificar = new ConfiguracionDocumento
-                {
-                    Id = nuevaId, Emisor = emisor, Tipo = tipo, CarpetaDestino = _carpetaDestino,
-                    FormatoCarpeta = FormatoCarpeta.Directo, PatronCarpeta = null, Renombrar = false, Patrones = []
-                };
-            }
+                Emisor = "(sin texto)",
+                Tipo = "(sin texto)",
+                CarpetaDestino = _carpetaDestinoFinal!,
+                FormatoCarpeta = FormatoCarpeta.Directo,
+                PatronCarpeta = null,
+                Renombrar = true,
+                Patrones = []
+            };
 
             string rutaFinal;
             try
             {
-                rutaFinal = ClasificadorService.Clasificar(_rutaArchivo, configuracionParaClasificar, null, null);
+                rutaFinal = ClasificadorService.Clasificar(_rutaArchivo, configuracionTemporal, null, nombre);
             }
             catch (ArchivoDuplicadoException ex)
             {
                 var resolver = new ResolverDuplicadoWindow(_rutaArchivo, ex.RutaDestino) { Owner = this };
                 if (resolver.ShowDialog() != true)
                 {
-                    MostrarError("Documento dejado pendiente por nombre duplicado. Podés intentar de nuevo o cancelar.");
+                    MostrarError("Documento dejado pendiente por nombre duplicado. Podés intentar de nuevo o cerrar.");
                     return;
                 }
 
@@ -152,7 +304,7 @@ public partial class IdentificarSinTextoWindow : Window
         }
     }
 
-    private void BtnCancelar_Click(object sender, RoutedEventArgs e)
+    private void BtnCerrar_Click(object sender, RoutedEventArgs e)
     {
         DialogResult = false;
         Close();
