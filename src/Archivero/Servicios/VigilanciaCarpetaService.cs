@@ -1,4 +1,5 @@
 using System.IO;
+using System.Threading;
 using Archivero.Datos;
 using Archivero.Servicios.Pdf;
 
@@ -120,6 +121,18 @@ public class VigilanciaCarpetaService : IDisposable
                 return;
             }
 
+            // Caso-6, punto 1: el evento Created del FileSystemWatcher dispara apenas Windows
+            // crea el archivo destino, no cuando termina de copiarse -- con archivos grandes
+            // (ej. una guia escaneada en imagen, mucho más pesada que un PDF con texto) es
+            // comun que todavia este bloqueado por el proceso que esta copiando. Sin esta
+            // espera, LectorPdf tira una excepcion que el catch de abajo se traga en silencio,
+            // y el archivo nunca llega a pendientes hasta el proximo reinicio (que si funciona,
+            // porque para entonces la copia ya termino).
+            if (!EsperarHastaQueElArchivoEsteListo(rutaArchivo))
+            {
+                return;
+            }
+
             if (!LectorPdf.TieneTextoExtraible(rutaArchivo))
             {
                 // No es un PDF con texto plano extraible (ej. una imagen escaneada): no hay
@@ -147,6 +160,34 @@ public class VigilanciaCarpetaService : IDisposable
             // RNF-2: si el archivo esta corrupto o no se puede leer, Archivero deja de intentar
             // con ese archivo puntual (sin tocarlo ni moverlo) y sigue observando con normalidad.
         }
+    }
+
+    /// <summary>
+    /// Reintenta abrir el archivo de solo lectura (sin bloquear a quien lo esta copiando) hasta
+    /// 3 segundos: mientras el proceso que lo copia todavia lo tiene abierto para escritura,
+    /// abrir falla con IOException (violacion de uso compartido) en vez de tirar una excepcion
+    /// rara mas adelante al leerlo con PDFium. Si nunca se libera, se trata como el caso ya
+    /// existente de "archivo corrupto o no legible" (RNF-2): se lo deja intacto y se sigue.
+    /// </summary>
+    private static bool EsperarHastaQueElArchivoEsteListo(string rutaArchivo)
+    {
+        const int intentos = 10;
+        const int esperaEntreIntentosMs = 300;
+
+        for (var intento = 0; intento < intentos; intento++)
+        {
+            try
+            {
+                using var stream = File.Open(rutaArchivo, FileMode.Open, FileAccess.Read, FileShare.Read);
+                return true;
+            }
+            catch (IOException)
+            {
+                Thread.Sleep(esperaEntreIntentosMs);
+            }
+        }
+
+        return false;
     }
 
     private void ManejarResultadoGuardado(string rutaArchivo, ResultadoProcesamiento resultado)
