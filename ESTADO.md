@@ -3,17 +3,15 @@
 > Se actualiza al final de cada sesión. Es lo tercero que hay que leer (después de AGENTS.md y SPEC.md) para saber dónde quedamos.
 
 ## Última sesión
-- Fecha: 2026-09-15
-- Qué se hizo: `preguntas/Caso-3.md` (rediseño guiado del paso de formato/patrón de carpetas), `Caso-4.md` (rediseño completo del flujo de PDFs sin texto extraíble) y `Caso-5.md` (botón "Eliminar duplicado") implementados y mergeados a `main`. Ver detalle de cada uno más abajo. 160 tests automáticos en total, todos verdes.
-- **Nota de proceso**: Caso-3 lo había empezado OpenCode Go en la rama `feat/caso3-formato-guiado`, que se quedó sin capacidad a mitad de sesión con cambios sin commitear. Se revisó el diff completo a mano (archivo por archivo, no solo el resultado final), se confirmó que compilaba, pasaba tests, y cubría todo lo pedido en Caso-3 sin referencias colgantes — se completó y se mergeó desde ahí, en vez de empezar de cero.
-- **Se resolvió el punto 2 de `preguntas/Caso-2.md`** ("vigilancia que no reacciona"), que había quedado sin investigar: Javier reportó en el uso real que dos PDF de guías firmadas no generaban ninguna reacción al dejarlos en la carpeta observada. Diagnóstico (con un test directo contra el archivo real y una consulta a la base de datos real de Javier): no era un problema de detección de texto ni de Caso-3/4/5 — la carpeta observada configurada (`C:\Users\jihja\Desktop\Archivero`) ya no existía en el disco, y `VigilanciaCarpetaService.Iniciar()` se quedaba en silencio total si la carpeta faltaba desde el arranque (solo avisaba si desaparecía mientras corría). Además, `App.xaml.cs` llamaba a `Iniciar()` antes de construir `MainWindow`, que es quien escucha ese aviso — se hubiera perdido igual. Se corrigieron ambos. Ver detalle en la sección "Caso-2" más abajo. 162 tests en total.
-- El `.exe` de `Distribucion/` se regeneró con estos cuatro cambios (ver `Distribucion/ESTADO-DISTRIBUCION.md`).
+- Fecha: 2026-09-16
+- Qué se hizo: `preguntas/Caso-6.md` (tres ajustes independientes de uso real) implementado y mergeado a `main` completo, un punto a la vez. Ver detalle de cada uno en la sección "Caso-6" más abajo. 166 tests automáticos en total, todos verdes.
+- **Confirmado por Javier**: el fix de la sesión anterior (carpeta observada borrada, sesión 2026-09-15) funciona — recreó la carpeta y los PDF de guías firmadas se reconocieron con normalidad.
+- El `.exe` de `Distribucion/` se regeneró con los tres puntos de Caso-6 (ver `Distribucion/ESTADO-DISTRIBUCION.md`).
 
 ## Siguiente paso
-- **Javier tiene que recrear su carpeta observada** (se borró del disco) o usar el botón "Cambiar…" para elegir una nueva, y volver a poner ahí los PDF de guías firmadas para confirmar que ahora sí aparecen en "Pendientes de distribuir".
-- **Falta la verificación real a mano de Javier** de Caso-3, Caso-4 y Caso-5 — el agente no puede correr la app de escritorio por su cuenta, solo confirmó que compila y pasa los tests automáticos (que no cubren la interfaz gráfica en sí, por convención de este proyecto). Los pasos de prueba sugeridos están en la descripción de cada PR (#20, #21, #22, #23).
-- **Punto a confirmar de Caso-4**: pide marcar la fecha del documento "de la misma forma que ya se hace para otros campos", pero un PDF sin texto extraíble no tiene nada que extraer de una coordenada (por definición). Se implementó como un campo de texto para escribir la fecha a mano en su lugar — ver el detalle en la sección de Caso-4 más abajo. Confirmar con Javier si esto es lo que tenía en mente o si prefiere otra solución.
-- Fuera de esto, no queda nada pendiente conocido del alcance de `SPEC.md` + Caso-1/2/3/4/5 (todos cerrados). Sigue abierto, como antes, cerrar los "Open issues" que quedan (nombres finales de interfaz).
+- **Falta la verificación real a mano de Javier** de Caso-6 — el agente no puede correr la app de escritorio por su cuenta, solo confirmó que compila y pasa los tests automáticos (que no cubren la interfaz gráfica en sí, por convención de este proyecto). Los pasos de prueba sugeridos están en la descripción de cada PR (#24, #25, #26).
+- **Punto sin confirmar, arrastrado de Caso-4** (sesión 2026-09-15, todavía no confirmado por Javier): pide marcar la fecha del documento sin texto extraíble "de la misma forma que ya se hace para otros campos", pero un PDF así no tiene nada que extraer de una coordenada (por definición). Se implementó como un campo de texto para escribir la fecha a mano en su lugar — ver el detalle en la sección de Caso-4 más abajo.
+- Fuera de esto, no queda nada pendiente conocido del alcance de `SPEC.md` + Caso-1 a Caso-6 (todos cerrados). Sigue abierto, como antes, cerrar los "Open issues" que quedan (nombres finales de interfaz).
 
 ## Caso-1 — 5 correcciones/ampliaciones del piloto real (2026-09-14)
 Ver `preguntas/Caso-1.md` para el texto completo de cada punto tal como lo trajo Javier del vault.
@@ -173,6 +171,20 @@ PR: [#21](https://github.com/jivhdev/Archivero/pull/21).
 
 ## Caso-5 — botón "Eliminar duplicado" (2026-09-15)
 Ver `preguntas/Caso-5.md` para el texto completo. Quinta opción en `Vistas/ResolverDuplicadoWindow`, al revés de "Reemplazar": se queda el archivo **viejo** que ya estaba guardado tal cual estaba, se descarta el archivo **nuevo** que acaba de llegar. El botón siempre está visible pero deshabilitado hasta que el usuario usa "Revisar" (lado a lado) al menos una vez y tilda una confirmación de que, tras revisarlos, son el mismo documento — nunca se puede eliminar sin haber comparado antes. Pide una confirmación adicional antes de borrar de verdad, al ser una eliminación permanente de un archivo. PR: [#22](https://github.com/jivhdev/Archivero/pull/22).
+
+## Caso-6 — tres ajustes de uso real (2026-09-16)
+Ver `preguntas/Caso-6.md` para el texto completo. Los 3 puntos son independientes entre sí.
+
+### Punto 1 — "Pendientes de distribuir" no se actualizaba en vivo
+Causa real (no era el problema de notificación/refresco que se sospechaba en Caso-6.md — ambas listas de `MainWindow` ya comparten el mismo `CargarPendientes()`, llamado por los mismos eventos): el evento `Created` del `FileSystemWatcher` dispara apenas Windows crea el archivo destino, no cuando termina de copiarse. Con archivos grandes (una guía escaneada en imagen pesa mucho más que un PDF con texto) es común que el proceso que copia todavía tenga el archivo bloqueado en ese momento; `LectorPdf` tiraba una excepción que el `catch` genérico de `VigilanciaCarpetaService.ProcesarArchivo` se tragaba en silencio (RNF-2), y el archivo nunca llegaba a pendientes hasta el próximo reinicio (que sí funcionaba, porque para entonces la copia ya había terminado — de ahí que pareciera "solo se actualiza al reabrir").
+
+Se agregó una espera activa (hasta 3 segundos, reintentando cada 300ms) que intenta abrir el archivo de solo lectura antes de tocarlo. Además, botón "Recargar" en "Pendientes de distribuir" para forzar el refresco a mano, sin importar el resultado del fix de fondo (pedido explícitamente en Caso-6.md sin condicionarlo al punto 1). PR: [#24](https://github.com/jivhdev/Archivero/pull/24).
+
+### Punto 2 — "Guardados recientes" persistidos
+El historial de "Guardados automáticamente" vivía solo en memoria de `MainWindow`: sin límite de tamaño dentro de una misma sesión, pero se perdía por completo cada vez que Archivero se cerraba de verdad (no solo minimizado a la bandeja) y se volvía a abrir — de ahí que pareciera "olvidarse casi enseguida". Nueva tabla `GuardadosRecientes` + `GuardadoRecienteRepository`: guarda cada guardado automático en la base, recortado a los últimos 20 (piso de 10 pedido por Javier, con margen). PR: [#25](https://github.com/jivhdev/Archivero/pull/25).
+
+### Punto 3 — el tipo de organización quedaba bloqueado tras elegirlo
+Una vez elegido un tipo (ej. "Por año"), no había forma de reconsiderar y elegir otro sin cancelar todo el asistente. Se agregó un botón "← Elegir otro tipo de organización" en `Vistas/OrganizacionCarpetaControl` (arriba de los ejemplos de patrón) que vuelve a mostrar los accesos rápidos; oculto cuando el paso está bloqueado (vinculando a una configuración existente). PR: [#26](https://github.com/jivhdev/Archivero/pull/26).
 
 ## Decisiones abiertas / dudas para el usuario
 - Nombres finales de interfaz pendientes (no bloquean el desarrollo) — ver "Open issues" de `SPEC.md`: la sección "pendientes por reconocer", la sección "configuraciones/identificaciones/identidades", el botón de revisar/actualizar disponibilidad, la opción de "vincular a configuración existente".
