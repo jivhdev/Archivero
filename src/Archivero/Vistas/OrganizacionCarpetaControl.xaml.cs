@@ -131,6 +131,13 @@ public partial class OrganizacionCarpetaControl : UserControl
         PanelPatron.Visibility = mostrarPatron ? Visibility.Visible : Visibility.Collapsed;
     }
 
+    /// <summary>Caso-6, punto 3: volver a elegir el tipo sin cancelar el asistente entero.</summary>
+    private void BtnCambiarTipo_Click(object sender, RoutedEventArgs e)
+    {
+        CargarAccesosRapidos();
+        MostrarSubpanel(mostrarPatron: false);
+    }
+
     private void CargarAccesosRapidos()
     {
         ContenedorAccesosRapidos.Children.Clear();
@@ -278,6 +285,7 @@ public partial class OrganizacionCarpetaControl : UserControl
 
         var (fechaReferencia, fechaEsSupuesta) = _proveedorFecha();
 
+        BtnCambiarTipo.Visibility = _bloqueado ? Visibility.Collapsed : Visibility.Visible;
         ContenedorEjemplos.Children.Clear();
         PanelPatronPersonalizado.Visibility = tipo == FormatoCarpeta.Personalizado ? Visibility.Visible : Visibility.Collapsed;
         TxtAvisoFechaHoy.Visibility = tipo != FormatoCarpeta.Directo && fechaEsSupuesta ? Visibility.Visible : Visibility.Collapsed;
