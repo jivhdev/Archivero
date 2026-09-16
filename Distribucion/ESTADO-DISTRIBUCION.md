@@ -1,6 +1,6 @@
 Estado actual: En piloto desde 2026-09-13 — pendiente de revisión.
 
-Última actualización del .exe: 2026-09-15, con el punto 1 de `preguntas/Caso-2.md` (carpeta observada configurable — ver `ESTADO.md`). El punto 2 de Caso-2 todavía no está incluido.
+Última actualización del .exe: 2026-09-15, con `preguntas/Caso-3.md` (rediseño guiado de formato/patrón de carpetas), `Caso-4.md` (rediseño del flujo de PDFs sin texto extraíble) y `Caso-5.md` (botón "Eliminar duplicado") — ver `ESTADO.md`. El punto 2 de Caso-2 (vigilancia que no reacciona a borrados manuales) todavía no está incluido.
 
 ## Qué contiene esta carpeta
 - `Archivero.exe`: ejecutable autocontenido de Windows (no requiere .NET instalado). Se abre con doble click.

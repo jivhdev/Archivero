@@ -3,15 +3,16 @@
 > Se actualiza al final de cada sesión. Es lo tercero que hay que leer (después de AGENTS.md y SPEC.md) para saber dónde quedamos.
 
 ## Última sesión
-- Fecha: 2026-09-15 (desde la PC del trabajo)
-- Qué se hizo: `preguntas/Caso-2.md`, punto 1 (carpeta observada no configurable, afecta REQ-001) implementado y verificado a mano por Javier. Ver detalle en la sección "Caso-2" más abajo. El punto 2 del mismo caso (vigilancia que no reacciona) **queda pendiente**, sin tocar todavía.
-- Se instaló el SDK de .NET 8 en esta PC del trabajo (no estaba presente).
-- **Importante — decisión de Javier sobre cómo trabajar de acá en adelante**: no más de una sesión de Claude Code por proyecto en paralelo (evitar releer todo el contexto dos veces y gastar el límite semanal al pedo). Mientras no haya forma de sincronizar la carpeta del repo entre la PC del trabajo y la personal, Javier va a trabajar solo desde su PC personal.
+- Fecha: 2026-09-15
+- Qué se hizo: `preguntas/Caso-3.md` (rediseño guiado del paso de formato/patrón de carpetas), `Caso-4.md` (rediseño completo del flujo de PDFs sin texto extraíble) y `Caso-5.md` (botón "Eliminar duplicado") implementados y mergeados a `main`. Ver detalle de cada uno más abajo. 160 tests automáticos en total, todos verdes.
+- **Nota de proceso**: Caso-3 lo había empezado OpenCode Go en la rama `feat/caso3-formato-guiado`, que se quedó sin capacidad a mitad de sesión con cambios sin commitear. Se revisó el diff completo a mano (archivo por archivo, no solo el resultado final), se confirmó que compilaba, pasaba tests, y cubría todo lo pedido en Caso-3 sin referencias colgantes — se completó y se mergeó desde ahí, en vez de empezar de cero.
+- El `.exe` de `Distribucion/` se regeneró con estos tres casos (ver `Distribucion/ESTADO-DISTRIBUCION.md`).
 
 ## Siguiente paso
-- Falta el punto 2 de `preguntas/Caso-2.md` (vigilancia que no reacciona a archivos nuevos — bug grave, afecta REQ-002/REQ-005). Nota de esta sesión: al probar el punto 1 a mano, Javier dejó 2 archivos en la carpeta observada (nueva) con Archivero corriendo (ventana minimizada a la bandeja, no cerrado de verdad) y los reconoció de inmediato — **eso no prueba el punto 2**, que trata específicamente de archivos dejados mientras Archivero no está corriendo, o el watcher fallando en silencio. Sigue sin investigarse.
-- El `.exe` de `Distribucion/` se regeneró con el punto 1 de Caso-2 (ver `Distribucion/ESTADO-DISTRIBUCION.md`).
-- Fuera de esto, no queda nada pendiente conocido del alcance de `SPEC.md` + `Caso-1.md` (cerrado). Sigue abierto, como antes, cerrar los "Open issues" que quedan (nombres finales de interfaz).
+- **Falta la verificación real a mano de Javier** de Caso-3, Caso-4 y Caso-5 — el agente no puede correr la app de escritorio por su cuenta, solo confirmó que compila y pasa los tests automáticos (que no cubren la interfaz gráfica en sí, por convención de este proyecto). Los pasos de prueba sugeridos están en la descripción de cada PR (#20, #21, #22).
+- **Punto a confirmar de Caso-4**: pide marcar la fecha del documento "de la misma forma que ya se hace para otros campos", pero un PDF sin texto extraíble no tiene nada que extraer de una coordenada (por definición). Se implementó como un campo de texto para escribir la fecha a mano en su lugar — ver el detalle en la sección de Caso-4 más abajo. Confirmar con Javier si esto es lo que tenía en mente o si prefiere otra solución.
+- Sigue pendiente el punto 2 de `preguntas/Caso-2.md` (vigilancia que no reacciona a archivos nuevos dejados mientras Archivero no está corriendo, o el watcher fallando en silencio — bug grave, afecta REQ-002/REQ-005). No se tocó esta sesión.
+- Fuera de esto, no queda nada pendiente conocido del alcance de `SPEC.md` + Caso-1/3/4/5 (cerrados). Sigue abierto, como antes, cerrar los "Open issues" que quedan (nombres finales de interfaz).
 
 ## Caso-1 — 5 correcciones/ampliaciones del piloto real (2026-09-14)
 Ver `preguntas/Caso-1.md` para el texto completo de cada punto tal como lo trajo Javier del vault.
@@ -27,7 +28,9 @@ PR: [#13](https://github.com/jivhdev/Archivero/pull/13) (detección) y [#14](htt
 En el asistente de identificación, desde el paso de Formato hasta Confirmar, un recuadro fijo muestra: la carpeta **anterior** (real, ya en disco, vía `FormatoCarpetaService.BuscarCarpetaAnteriorReal`), la carpeta **actual** (ruta y nombre exactos de cómo quedaría el documento de hoy, reusando `ClasificadorService.CalcularRutaDestino`), y la carpeta **futura** (la que se crearía en el próximo período, si aplica). Se actualiza solo al cambiar formato/patrón o al marcar la fecha, y tiene un botón para refrescarlo a mano. PR: [#14](https://github.com/jivhdev/Archivero/pull/14).
 
 ### Punto 1 — PDFs sin texto extraíble quedan visibles y configurables a mano
-Antes desaparecían sin dejar rastro. Ahora aparecen en pendientes (motivo `SinTextoExtraible`) con una pantalla dedicada (`Vistas/IdentificarSinTextoWindow`): Emisor y Tipo se escriben a mano (no hay texto para marcar por coordenadas), la carpeta se elige como cualquier configuración normal, y la configuración resultante queda siempre en "Directo" y sin renombrar. Los próximos documentos del mismo Emisor+Tipo se enrutan solos vía un mecanismo de coincidencia aparte (`CoincidenciaAutomaticaService.BuscarConfiguracionSinTextoQueCoincide`, busca una configuración con un "patrón sin ninguna marca"); si hay más de una así, es ambiguo y queda pendiente en vez de adivinar. De paso se corrigió un bug real en `ConfiguracionDocumentoRepository.ObtenerPatrones`: usaba un INNER JOIN desde `Marcas`, así que un patrón sin ninguna marca desaparecía al leerlo de vuelta de la base (nunca se había notado porque hasta ahora todo patrón tenía al menos Emisor y Tipo). PR: [#15](https://github.com/jivhdev/Archivero/pull/15).
+**Superado por Caso-4 (ver más abajo, sesión 2026-09-15)**: Javier encontró que este enfoque (Emisor/Tipo a mano + auto-coincidencia por "patrón sin marcas") no funcionaba como necesitaba en la práctica. El mecanismo de auto-coincidencia se eliminó del código; queda esta sección solo como referencia histórica de qué se intentó primero y por qué se descartó.
+
+Descripción original: antes desaparecían sin dejar rastro. Se agregaron a pendientes (motivo `SinTextoExtraible`) con una pantalla dedicada (`Vistas/IdentificarSinTextoWindow`): Emisor y Tipo se escribían a mano (no hay texto para marcar por coordenadas), la carpeta se elegía como cualquier configuración normal, y la configuración resultante quedaba siempre en "Directo" y sin renombrar. Los próximos documentos del mismo Emisor+Tipo se enrutaban solos vía un mecanismo de coincidencia aparte (buscaba una configuración con un "patrón sin ninguna marca"); si había más de una así, quedaba pendiente en vez de adivinar. De paso se corrigió un bug real en `ConfiguracionDocumentoRepository.ObtenerPatrones` (sigue vigente, no se deshizo): usaba un INNER JOIN desde `Marcas`, así que un patrón sin ninguna marca desaparecía al leerlo de vuelta de la base. PR: [#15](https://github.com/jivhdev/Archivero/pull/15).
 
 ### Punto 4 — vista simple de un guardado, botón Atrás, y borrar configuración
 "Guardados automáticamente" es interactivo: doble click abre una vista simple (`Vistas/VerGuardadoWindow`) con "Abrir ubicación" (explorador de Windows) y "Editar configuración" — esta última toma ese mismo archivo directamente (nunca pide buscar uno parecido), lo re-reconoce en su ubicación actual y lleva al asistente derecho al paso de elegir carpeta, sin repetir Emisor/Tipo. Se agregó un botón "Atrás" al asistente (se puede retroceder un paso, nunca saltar adelante). Se agregó borrar una configuración de documento completa desde "Administrar clasificaciones" (no existía) — nunca toca archivos ya guardados en disco. PR: [#16](https://github.com/jivhdev/Archivero/pull/16).
@@ -128,6 +131,36 @@ Nota de la sesión (no bloqueante): el onboarding de primera vez (`App.xaml.cs`,
 
 ### Punto 2 — vigilancia que no reacciona a archivos nuevos (afecta REQ-002/REQ-005)
 **Todavía no investigado ni implementado.** Queda para la próxima sesión.
+
+## Caso-3 — rediseño guiado del paso de formato/patrón de carpetas (2026-09-15)
+Ver `preguntas/Caso-3.md` para el texto completo. Reemplaza la detección automática de formato de carpeta (Caso-1, punto 2) por un flujo explícito paso a paso: menos adivinar, más pasos claros con vista previa como verificación.
+
+- **Paso 2 revisado**: carpeta madre + elección explícita "Guardar directo"/"Guardar en subcarpetas" (nunca se detecta sola).
+- **Paso 3 nuevo**: accesos rápidos configurables (sin máximo) + "Ver todas las opciones" (lista completa de 10 tipos de organización en el orden exacto de granularidad creciente de Caso-3, más "Ninguna de estas — patrón personalizado" al final). Elegir un tipo de la lista completa pregunta con qué acceso rápido enlazarlo (reemplazar uno existente o agregarlo como nuevo). Los ejemplos de patrón se muestran concretos (nunca códigos abstractos como `yyyy/MM`), generados con la fecha del documento si ya se marcó, o la de hoy mientras tanto — se recalculan solos apenas se marca la fecha.
+- La vista previa obligatoria de Caso-1 punto 3 se mantiene sin cambios en el mecanismo.
+
+`FormatoCarpeta` (enum) creció de 3 a 11 valores (`Anio`, `AnioSemestre`, `AnioTrimestre`, `AnioMes`, `AnioQuincena`, `AnioSemana`, `AnioMesDia`, `MesSinAnio`, `SemanaDelMes`, `Personalizado`, más `Directo`). `FormatoCarpetaService` ganó un motor de patrones propio (tokens para semestre/trimestre/quincena/semana ISO/semana del mes, ademas de año/mes/día) con búsqueda hacia atrás por fechas candidatas para "carpeta anterior real" (los patrones nuevos pueden tener hasta 3 niveles y tokens que `DateTime.ToString` no conoce). Los patrones viejos (`yyyy`, `yyyy\MM`, `yyyy\yyyyMM`, y los detectados por evidencia de Caso-1 con texto literal alrededor) siguen funcionando igual — motor con fallback a `DateTime.ToString` si un token no se reconoce.
+
+Migración de base incluida: el `CHECK` de `FormatoCarpeta` en la tabla `Configuraciones` solo aceptaba `Directo`/`Anio`/`AnioMes`. SQLite no permite alterar un `CHECK` con `ALTER TABLE`, así que la tabla se recrea preservando los datos (con `PRAGMA foreign_key_check` para verificar que no se rompió nada).
+
+El Paso 3 (accesos rápidos/lista completa/enlazar/ejemplos) se extrajo a un `UserControl` propio (`Vistas/OrganizacionCarpetaControl`) para que Caso-4 lo reutilice tal cual, sin reimplementar nada — ver esa sección.
+
+PR: [#20](https://github.com/jivhdev/Archivero/pull/20).
+
+## Caso-4 — rediseño completo del flujo de PDFs sin texto extraíble (2026-09-15)
+Ver `preguntas/Caso-4.md` para el texto completo. Reemplaza por completo `IdentificarSinTextoWindow` (Caso-1, punto 1), que no funcionaba como Javier necesitaba en la práctica.
+
+- **Lista separada "Pendientes de distribuir"** en `MainWindow`: un PDF sin texto extraíble nunca vuelve a aparecer en "Pendientes por reconocer". Como consecuencia, se eliminó el mecanismo viejo de auto-coincidencia por "patrón sin marcas" (`CoincidenciaAutomaticaService.BuscarConfiguracionSinTextoQueCoincide`, y su llamado en `VigilanciaCarpetaService`) — ya no hay Emisor/Tipo que reconocer en este flujo, así que nunca tiene sentido auto-clasificar: todo PDF sin texto pasa siempre por "Pendientes de distribuir".
+- **Visor con zoom**: ya existía en `VisorPdfConMarcado` desde antes de Caso-1; el flujo sin texto ahora lo usa tal cual, en vez de una imagen estática de la primera página.
+- **Dos opciones**: "Crear ubicación nueva" (carpeta madre; si ya tiene subcarpetas, usa `OrganizacionCarpetaControl` de Caso-3 tal cual; si está vacía, pregunta directo/organizada) y "Ver ubicaciones disponibles" (lista de ubicaciones ya usadas antes, con navegación por niveles de carpetas reales en disco para las organizadas — solo lista subcarpetas existentes, sin cálculo de fechas — o confirmación simple para las directas). Nueva tabla `UbicacionesSinTexto`, deliberadamente separada de las configuraciones normales de Emisor+Tipo (`ObtenerOCrear` evita duplicar la misma ubicación).
+- **Editar el nombre de archivo** como último paso antes de guardar: arranca con el nombre original (sin extensión), botón "Borrar" (lo vacía), y botón para dejar solo los dígitos.
+
+**Desviación de interpretación, a confirmar con Javier**: el texto de Caso-4 pide marcar la fecha "de la misma forma que ya se hace para otros campos", pero un PDF sin texto extraíble no tiene absolutamente nada que extraer de una coordenada (`LectorPdf.TieneTextoExtraible` ya descartó el documento entero). Marcar un rectángulo ahí no puede producir ningún valor real, así que se implementó como un campo de texto para escribir la fecha a mano (parseado con `FechaExtraidaService.TryParsear`, el mismo usado en el resto de la app) en vez de marcarla por coordenadas. El visor de PDF de esta ventana se usa solo para ver/hacer zoom, no para marcar nada.
+
+PR: [#21](https://github.com/jivhdev/Archivero/pull/21).
+
+## Caso-5 — botón "Eliminar duplicado" (2026-09-15)
+Ver `preguntas/Caso-5.md` para el texto completo. Quinta opción en `Vistas/ResolverDuplicadoWindow`, al revés de "Reemplazar": se queda el archivo **viejo** que ya estaba guardado tal cual estaba, se descarta el archivo **nuevo** que acaba de llegar. El botón siempre está visible pero deshabilitado hasta que el usuario usa "Revisar" (lado a lado) al menos una vez y tilda una confirmación de que, tras revisarlos, son el mismo documento — nunca se puede eliminar sin haber comparado antes. Pide una confirmación adicional antes de borrar de verdad, al ser una eliminación permanente de un archivo. PR: [#22](https://github.com/jivhdev/Archivero/pull/22).
 
 ## Decisiones abiertas / dudas para el usuario
 - Nombres finales de interfaz pendientes (no bloquean el desarrollo) — ver "Open issues" de `SPEC.md`: la sección "pendientes por reconocer", la sección "configuraciones/identificaciones/identidades", el botón de revisar/actualizar disponibilidad, la opción de "vincular a configuración existente".
