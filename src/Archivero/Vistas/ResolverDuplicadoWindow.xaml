@@ -10,6 +10,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" FontSize="14" FontWeight="Bold" Text="Ya existe un archivo con este nombre en el destino" Margin="0,0,0,8"/>
@@ -37,9 +38,16 @@
             </StackPanel>
         </Grid>
 
-        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+        <!-- Caso-5: "Eliminar duplicado" solo se habilita despues de confirmar aca que, tras
+             revisarlos lado a lado, son el mismo documento; nunca antes de compararlos. -->
+        <CheckBox Grid.Row="3" Name="ChkConfirmarMismoDocumento" Margin="0,8,0,0" Visibility="Collapsed"
+                   Content="Confirmo que, tras revisarlos, son el mismo documento"
+                   Checked="ChkConfirmarMismoDocumento_Changed" Unchecked="ChkConfirmarMismoDocumento_Changed"/>
+
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
             <Button Name="BtnRevisar" Content="Revisar lado a lado" Padding="8,6" Margin="0,0,8,0" Click="BtnRevisar_Click"/>
             <Button Content="Reemplazar" Padding="8,6" Margin="0,0,8,0" Click="BtnReemplazar_Click"/>
+            <Button Name="BtnEliminarDuplicado" Content="Eliminar duplicado" Padding="8,6" Margin="0,0,8,0" IsEnabled="False" Click="BtnEliminarDuplicado_Click"/>
             <Button Content="Dejar pendiente" Padding="8,6" Margin="0,0,8,0" Click="BtnDejarPendiente_Click"/>
             <Button Content="Guardar en otra ubicación" Padding="8,6" Click="BtnExcepcion_Click"/>
         </StackPanel>

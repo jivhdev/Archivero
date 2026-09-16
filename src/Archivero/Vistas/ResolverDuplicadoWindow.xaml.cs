@@ -43,11 +43,52 @@ public partial class ResolverDuplicadoWindow : Window
             ImagenNuevo.Source = RenderizarPrimeraPagina(_rutaArchivoNuevo);
             PanelComparacion.Visibility = Visibility.Visible;
             BtnRevisar.Content = "Ocultar comparación";
+
+            // Caso-5: "Eliminar duplicado" solo se puede habilitar despues de usar "Revisar" al
+            // menos una vez -- la confirmacion (el checkbox) no aparece antes de eso.
+            ChkConfirmarMismoDocumento.Visibility = Visibility.Visible;
         }
         catch (Exception ex)
         {
             System.Windows.MessageBox.Show(this, $"No se pudo mostrar la comparación: {ex.Message}", "Archivero",
                 MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void ChkConfirmarMismoDocumento_Changed(object sender, RoutedEventArgs e)
+    {
+        BtnEliminarDuplicado.IsEnabled = ChkConfirmarMismoDocumento.IsChecked == true;
+    }
+
+    /// <summary>Caso-5: al revés de "Reemplazar" -- se queda el archivo VIEJO tal cual estaba, se descarta el que acaba de llegar.</summary>
+    private void BtnEliminarDuplicado_Click(object sender, RoutedEventArgs e)
+    {
+        var confirmar = System.Windows.MessageBox.Show(
+            this,
+            $"¿Eliminar el documento nuevo que acaba de llegar?\n\n{_rutaArchivoNuevo}\n\n" +
+            "El que ya estaba guardado no se toca.",
+            "Archivero", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+
+        if (confirmar != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        try
+        {
+            File.Delete(_rutaArchivoNuevo);
+            _pendientes.Quitar(_rutaArchivoNuevo);
+
+            System.Windows.MessageBox.Show(this, "Documento nuevo eliminado. Se mantuvo el que ya estaba guardado.", "Archivero",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+
+            DialogResult = true;
+            Close();
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(this, $"No se pudo eliminar: {ex.Message}", "Archivero",
+                MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
