@@ -1,6 +1,6 @@
 Estado actual: En piloto desde 2026-09-13 — pendiente de revisión.
 
-Última actualización del .exe: 2026-09-16, con `preguntas/Caso-6.md` (tres ajustes de uso real: "Pendientes de distribuir" ahora actualiza en vivo y tiene botón "Recargar"; "Guardados recientes" persiste hasta los últimos 20; el tipo de organización se puede volver a elegir sin cancelar el asistente) — ver `ESTADO.md`. Caso-1 a Caso-6 están todos cerrados.
+Última actualización del .exe: 2026-09-22, con `preguntas/Caso-8.md` (indicador de tiempo humano ahorrado, franja al pie de la ventana principal) — ver `ESTADO.md`. Caso-1 a Caso-6 y Caso-8 están cerrados; `preguntas/Caso-7.md` está pendiente, todavía sin empezar.
 
 ## Qué contiene esta carpeta
 - `Archivero.exe`: ejecutable autocontenido de Windows (no requiere .NET instalado). Se abre con doble click.

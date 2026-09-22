@@ -3,15 +3,17 @@
 > Se actualiza al final de cada sesión. Es lo tercero que hay que leer (después de AGENTS.md y SPEC.md) para saber dónde quedamos.
 
 ## Última sesión
-- Fecha: 2026-09-16
-- Qué se hizo: `preguntas/Caso-6.md` (tres ajustes independientes de uso real) implementado y mergeado a `main` completo, un punto a la vez. Ver detalle de cada uno en la sección "Caso-6" más abajo. 166 tests automáticos en total, todos verdes.
-- **Confirmado por Javier**: el fix de la sesión anterior (carpeta observada borrada, sesión 2026-09-15) funciona — recreó la carpeta y los PDF de guías firmadas se reconocieron con normalidad.
-- El `.exe` de `Distribucion/` se regeneró con los tres puntos de Caso-6 (ver `Distribucion/ESTADO-DISTRIBUCION.md`).
+- Fecha: 2026-09-22
+- Qué se hizo: `preguntas/Caso-8.md` (indicador de tiempo humano ahorrado) implementado y mergeado a `main`. Ver detalle en la sección "Caso-8" más abajo. 181 tests automáticos en total, todos verdes.
+- El `.exe` de `Distribucion/` se regeneró con Caso-8 (ver `Distribucion/ESTADO-DISTRIBUCION.md`).
+- A pedido de Javier, se hizo solo este caso esta sesión ("vamos en orden") — `preguntas/Caso-7.md` quedó explícitamente para otra sesión, sin tocar.
 
 ## Siguiente paso
-- **Falta la verificación real a mano de Javier** de Caso-6 — el agente no puede correr la app de escritorio por su cuenta, solo confirmó que compila y pasa los tests automáticos (que no cubren la interfaz gráfica en sí, por convención de este proyecto). Los pasos de prueba sugeridos están en la descripción de cada PR (#24, #25, #26).
-- **Punto sin confirmar, arrastrado de Caso-4** (sesión 2026-09-15, todavía no confirmado por Javier): pide marcar la fecha del documento sin texto extraíble "de la misma forma que ya se hace para otros campos", pero un PDF así no tiene nada que extraer de una coordenada (por definición). Se implementó como un campo de texto para escribir la fecha a mano en su lugar — ver el detalle en la sección de Caso-4 más abajo.
-- Fuera de esto, no queda nada pendiente conocido del alcance de `SPEC.md` + Caso-1 a Caso-6 (todos cerrados). Sigue abierto, como antes, cerrar los "Open issues" que quedan (nombres finales de interfaz).
+- **`preguntas/Caso-7.md` está pendiente, sin empezar**: dos puntos independientes — "Imprimir después de archivar" (nueva opción configurable por tipo de documento) y ajustes de ventana. Leer el archivo completo antes de arrancar.
+- **Falta la verificación real a mano de Javier** de Caso-8 — el agente no puede correr la app de escritorio por su cuenta, solo confirmó que compila y pasa los tests automáticos (que no cubren la interfaz gráfica en sí, por convención de este proyecto). Pasos de prueba sugeridos en la descripción del PR (#27).
+- **Sigue sin confirmar, arrastrado de Caso-4** (sesión 2026-09-15): pide marcar la fecha del documento sin texto extraíble "de la misma forma que ya se hace para otros campos", pero un PDF así no tiene nada que extraer de una coordenada (por definición). Se implementó como un campo de texto para escribir la fecha a mano en su lugar — ver el detalle en la sección de Caso-4 más abajo.
+- Falta también la verificación a mano de Caso-6 (sesión 2026-09-16), que no se confirmó todavía.
+- Fuera de esto, no queda nada pendiente conocido del alcance de `SPEC.md` + Caso-1 a Caso-6 y Caso-8 (todos cerrados). Sigue abierto, como antes, cerrar los "Open issues" que quedan (nombres finales de interfaz).
 
 ## Caso-1 — 5 correcciones/ampliaciones del piloto real (2026-09-14)
 Ver `preguntas/Caso-1.md` para el texto completo de cada punto tal como lo trajo Javier del vault.
@@ -185,6 +187,17 @@ El historial de "Guardados automáticamente" vivía solo en memoria de `MainWind
 
 ### Punto 3 — el tipo de organización quedaba bloqueado tras elegirlo
 Una vez elegido un tipo (ej. "Por año"), no había forma de reconsiderar y elegir otro sin cancelar todo el asistente. Se agregó un botón "← Elegir otro tipo de organización" en `Vistas/OrganizacionCarpetaControl` (arriba de los ejemplos de patrón) que vuelve a mostrar los accesos rápidos; oculto cuando el paso está bloqueado (vinculando a una configuración existente). PR: [#26](https://github.com/jivhdev/Archivero/pull/26).
+
+## Caso-8 — indicador de tiempo humano ahorrado (2026-09-22)
+Ver `preguntas/Caso-8.md` para el texto completo. Funcionalidad nueva, autocontenida.
+
+Franja chica al pie de `MainWindow`, abajo de las tres listas: `X documentos archivados automáticamente — tiempo humano ahorrado: ~Y` con una aclaración del criterio en letra más chica.
+
+- **X**: total histórico de documentos guardados automáticamente (REQ-002). No se puede sacar contando filas de `GuardadosRecientes` porque esa tabla se recorta a los últimos 20 (Caso-6, punto 2) — se descartó esa premisa del caso y se llevó aparte, como un contador propio (`ConfiguracionRepository.IncrementarContador`/`ObtenerContador`, clave `TotalDocumentosArchivadosAutomaticamente` en la tabla `Configuracion`), incrementado en el mismo punto donde `MainWindow` ya agregaba a `GuardadosRecientes` — nunca cuenta el guardado manual de PDFs sin texto extraíble de Caso-4.
+- **Y**: X × 3 segundos (`Servicios/TiempoAhorradoService.SegundosAhorradosPorDocumento`, única constante), convertido a minutos, o a horas y minutos si supera una hora (sugerencia de legibilidad de Caso-8, implementada).
+- Total histórico acumulado desde siempre, no una ventana de tiempo. Se recalcula con un `COUNT` liviano cada vez que cambia, sin cachear nada en memoria.
+
+PR: [#27](https://github.com/jivhdev/Archivero/pull/27).
 
 ## Decisiones abiertas / dudas para el usuario
 - Nombres finales de interfaz pendientes (no bloquean el desarrollo) — ver "Open issues" de `SPEC.md`: la sección "pendientes por reconocer", la sección "configuraciones/identificaciones/identidades", el botón de revisar/actualizar disponibilidad, la opción de "vincular a configuración existente".
