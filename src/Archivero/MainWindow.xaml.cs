@@ -18,7 +18,8 @@ public partial class MainWindow : Window
 {
     private readonly PendienteRepository _pendientes = new();
     private readonly ConfiguracionDocumentoRepository _configuraciones = new();
-    private readonly CarpetaObservadaService _servicioCarpeta = new(new ConfiguracionRepository());
+    private readonly ConfiguracionRepository _configuracion = new();
+    private readonly CarpetaObservadaService _servicioCarpeta;
     private readonly GuardadoRecienteRepository _guardadosRecientes = new();
     private VigilanciaCarpetaService _vigilancia;
     private string _carpetaObservada;
@@ -28,6 +29,7 @@ public partial class MainWindow : Window
     public MainWindow(string carpetaObservada, VigilanciaCarpetaService vigilancia)
     {
         InitializeComponent();
+        _servicioCarpeta = new CarpetaObservadaService(_configuracion);
         _carpetaObservada = carpetaObservada;
         TxtCarpetaObservada.Text = $"Carpeta observada: {carpetaObservada}";
 
@@ -39,6 +41,7 @@ public partial class MainWindow : Window
 
         CargarPendientes();
         CargarGuardadosRecientes();
+        CargarTiempoAhorrado();
     }
 
     private void SuscribirEventosVigilancia()
@@ -84,7 +87,12 @@ public partial class MainWindow : Window
     private void AgregarAGuardadosRecientes(string rutaFinal)
     {
         _guardadosRecientes.Agregar(rutaFinal);
+        // Caso-8: el contador de tiempo ahorrado se lleva aparte de GuardadosRecientes (que se
+        // recorta a los últimos 20 -- Caso-6, punto 2), justo acá, en el único punto real donde
+        // un documento se archivó solo (REQ-002; nunca el flujo manual de PDFs sin texto).
+        TiempoAhorradoService.RegistrarDocumentoArchivado(_configuracion);
         CargarGuardadosRecientes();
+        CargarTiempoAhorrado();
     }
 
     private void CargarGuardadosRecientes()
@@ -92,6 +100,14 @@ public partial class MainWindow : Window
         ListaGuardados.ItemsSource = _guardadosRecientes.ObtenerTodos()
             .Select(g => new GuardadoRecienteFila(g.Hora, g.RutaFinal))
             .ToList();
+    }
+
+    private void CargarTiempoAhorrado()
+    {
+        var total = TiempoAhorradoService.ObtenerTotalDocumentos(_configuracion);
+        var (titulo, aclaracion) = TiempoAhorradoService.FormatearResumen(total);
+        TxtTiempoAhorrado.Text = titulo;
+        TxtTiempoAhorradoAclaracion.Text = aclaracion;
     }
 
     private void ListaGuardados_MouseDoubleClick(object sender, MouseButtonEventArgs e)
