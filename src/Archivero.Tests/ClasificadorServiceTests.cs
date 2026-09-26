@@ -101,6 +101,88 @@ public class ClasificadorServiceTests : IDisposable
         Assert.True(File.Exists(origen), "El original no se debe tocar si tambien hay duplicado en la excepcion");
     }
 
+    // ----- Caso-9, mejora 1: estos tests describen el comportamiento pedido y tienen que fallar
+    // contra el ClasificadorService de hoy (sin la validación centralizada todavía). -----
+
+    [Fact]
+    public void CalcularRutaDestino_ConPathTraversalEnElNombreExtraido_NoEscapaLaCarpetaDestino()
+    {
+        // Texto extraido de un PDF no es confiable: no puede escapar de la carpeta configurada
+        // aunque contenga "..\" -- (e), última línea de defensa, siempre se aplica.
+        var origen = CrearArchivo(_carpetaOrigen, "factura.pdf");
+        var configuracion = Configuracion() with { Renombrar = true };
+
+        var ruta = ClasificadorService.CalcularRutaDestino(origen, configuracion, null, @"..\..\fuera");
+
+        var rutaResuelta = Path.GetFullPath(ruta);
+        var destinoResuelto = Path.GetFullPath(_carpetaDestino);
+        Assert.StartsWith(destinoResuelto + Path.DirectorySeparatorChar, rutaResuelta);
+    }
+
+    [Fact]
+    public void Clasificar_ConCaracteresInvalidosDeWindowsEnElNombreExtraido_LosSaneaYGuardaIgual()
+    {
+        var origen = CrearArchivo(_carpetaOrigen, "factura.pdf");
+        var configuracion = Configuracion() with { Renombrar = true };
+
+        var rutaFinal = ClasificadorService.Clasificar(origen, configuracion, null, "Factura:2026");
+
+        Assert.Equal(Path.Combine(_carpetaDestino, "Factura_2026.pdf"), rutaFinal);
+        Assert.True(File.Exists(rutaFinal));
+    }
+
+    [Fact]
+    public void Clasificar_ConNombreExtraidoReservadoDeWindows_RechazaYNoTocaElOriginal()
+    {
+        var origen = CrearArchivo(_carpetaOrigen, "factura.pdf");
+        var configuracion = Configuracion() with { Renombrar = true };
+
+        Assert.Throws<ValidacionSeguridadException>(() =>
+            ClasificadorService.Clasificar(origen, configuracion, null, "CON"));
+
+        Assert.True(File.Exists(origen), "El original no se debe tocar ante un nombre reservado");
+    }
+
+    [Fact]
+    public void Clasificar_ConCaracterDeControlEnElNombreExtraido_RechazaYNoTocaElOriginal()
+    {
+        var origen = CrearArchivo(_carpetaOrigen, "factura.pdf");
+        var configuracion = Configuracion() with { Renombrar = true };
+
+        Assert.Throws<ValidacionSeguridadException>(() =>
+            ClasificadorService.Clasificar(origen, configuracion, null, "Factura\u0000Falsa"));
+
+        Assert.True(File.Exists(origen));
+    }
+
+    [Fact]
+    public void Clasificar_ConNombreExtraidoDemasiadoLargo_Rechaza()
+    {
+        var origen = CrearArchivo(_carpetaOrigen, "factura.pdf");
+        var configuracion = Configuracion() with { Renombrar = true };
+        var nombreLargo = new string('a', 250);
+
+        Assert.Throws<ValidacionSeguridadException>(() =>
+            ClasificadorService.Clasificar(origen, configuracion, null, nombreLargo));
+
+        Assert.True(File.Exists(origen));
+    }
+
+    [Fact]
+    public void CalcularRutaDestino_ConPatronPersonalizadoConCaracterInvalido_LoSaneaEnLaSubcarpeta()
+    {
+        var origen = CrearArchivo(_carpetaOrigen, "factura.pdf");
+        var configuracion = Configuracion() with
+        {
+            FormatoCarpeta = FormatoCarpeta.Personalizado,
+            PatronCarpeta = "'Año: 'yyyy"
+        };
+
+        var ruta = ClasificadorService.CalcularRutaDestino(origen, configuracion, new DateTime(2026, 3, 15), null);
+
+        Assert.Equal(Path.Combine(_carpetaDestino, "Año_ 2026", "factura.pdf"), ruta);
+    }
+
     public void Dispose()
     {
         Directory.Delete(_raiz, recursive: true);

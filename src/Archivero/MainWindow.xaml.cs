@@ -176,6 +176,17 @@ public partial class MainWindow : Window
         {
             AbrirCreacionDePeriodo(pendiente.RutaArchivo);
         }
+        else if (pendiente.Motivo is MotivoPendiente.TextoConCaracteresInvalidos or MotivoPendiente.NombreReservadoPorWindows
+            or MotivoPendiente.RutaFueraDeCarpetaConfigurada or MotivoPendiente.NombreORutaDemasiadoLarga)
+        {
+            // Caso-9, mejora 1: no tiene sentido reabrir el asistente -- el dato extraído es el
+            // mismo texto problemático de siempre. Se explica el motivo y se deja para revisar a mano.
+            System.Windows.MessageBox.Show(
+                this,
+                $"Este documento no se puede guardar automáticamente:\n\n{pendiente.Motivo.DescripcionLegible()}\n\n" +
+                "Revisalo a mano; si corresponde, movelo vos mismo a su carpeta.",
+                "Archivero", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
         else
         {
             var asistente = new IdentificarDocumentoWindow(pendiente.RutaArchivo) { Owner = this };

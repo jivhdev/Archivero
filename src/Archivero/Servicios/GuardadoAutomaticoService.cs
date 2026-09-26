@@ -10,10 +10,15 @@ public enum ResultadoGuardadoAutomatico
     ValorInvalido,
     Duplicado,
     CarpetaNoDisponible,
-    PeriodoNuevo
+    PeriodoNuevo,
+    ValidacionFallida
 }
 
-public record ResultadoProcesamiento(ResultadoGuardadoAutomatico Resultado, string? RutaFinal = null, string? Detalle = null);
+public record ResultadoProcesamiento(
+    ResultadoGuardadoAutomatico Resultado,
+    string? RutaFinal = null,
+    string? Detalle = null,
+    MotivoPendiente? MotivoValidacion = null);
 
 public record CamposExtraidos(DateTime? Fecha, string? NombreExtraido);
 
@@ -105,6 +110,12 @@ public static class GuardadoAutomaticoService
         catch (ArchivoDuplicadoException ex)
         {
             return new ResultadoProcesamiento(ResultadoGuardadoAutomatico.Duplicado, Detalle: ex.Message);
+        }
+        catch (ValidacionSeguridadException ex)
+        {
+            // Caso-9, mejora 1(g): nunca un guardado silencioso -- el documento queda pendiente
+            // con un motivo específico y legible, nunca una excepción sin manejar.
+            return new ResultadoProcesamiento(ResultadoGuardadoAutomatico.ValidacionFallida, Detalle: ex.Message, MotivoValidacion: ex.Motivo);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
