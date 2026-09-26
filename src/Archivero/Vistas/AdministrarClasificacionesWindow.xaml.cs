@@ -138,6 +138,7 @@ public partial class AdministrarClasificacionesWindow : Window
         }
 
         _configuraciones.EliminarConfiguracion(fila.Configuracion.Id);
+        Servicios.AuditoriaService.Registrar("CLASIFICACION_BORRADA", $"Emisor={fila.Emisor}; Tipo={fila.Tipo}");
         CargarClasificaciones();
     }
 

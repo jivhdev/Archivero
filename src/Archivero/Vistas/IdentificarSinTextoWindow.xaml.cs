@@ -291,6 +291,7 @@ public partial class IdentificarSinTextoWindow : Window
             }
 
             _pendientes.Quitar(_rutaArchivo);
+            AuditoriaService.Registrar("GUARDADO_MANUAL_SIN_TEXTO", $"Ruta={rutaFinal}");
 
             System.Windows.MessageBox.Show(this, $"Documento guardado en:\n{rutaFinal}", "Archivero",
                 MessageBoxButton.OK, MessageBoxImage.Information);

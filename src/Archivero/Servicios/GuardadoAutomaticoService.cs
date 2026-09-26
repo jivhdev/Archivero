@@ -100,6 +100,9 @@ public static class GuardadoAutomaticoService
         {
             var rutaFinal = ClasificadorService.Clasificar(rutaArchivo, configuracionConPatronCoincidente, campos.Fecha, campos.NombreExtraido);
 
+            AuditoriaService.Registrar("DOCUMENTO_GUARDADO",
+                $"Emisor={configuracionConPatronCoincidente.Emisor}; Tipo={configuracionConPatronCoincidente.Tipo}; Ruta={rutaFinal}");
+
             if (configuracionConPatronCoincidente.AbrirDespuesDeGuardar)
             {
                 AbrirEnVisorDelSistema(rutaFinal);

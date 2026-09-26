@@ -6,12 +6,18 @@ namespace Archivero.Tests;
 public class VigilanciaCarpetaServiceTests : IDisposable
 {
     private readonly string _rutaDbTemporal;
+    private readonly string _rutaLogOriginal;
 
     public VigilanciaCarpetaServiceTests()
     {
         _rutaDbTemporal = Path.Combine(Path.GetTempPath(), $"archivero-tests-{Guid.NewGuid():N}.db");
         BaseDeDatos.RutaArchivo = _rutaDbTemporal;
         BaseDeDatos.AsegurarEsquema();
+
+        // Caso-9, mejora 2: redirigir el log de auditoria para no escribir en el real del
+        // usuario al correr los tests.
+        _rutaLogOriginal = AuditoriaService.RutaLog;
+        AuditoriaService.RutaLog = Path.Combine(Path.GetTempPath(), $"archivero-tests-{Guid.NewGuid():N}", "auditoria.log");
     }
 
     [Fact]
@@ -56,6 +62,7 @@ public class VigilanciaCarpetaServiceTests : IDisposable
 
     public void Dispose()
     {
+        AuditoriaService.RutaLog = _rutaLogOriginal;
         Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
         File.Delete(_rutaDbTemporal);
     }

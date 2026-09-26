@@ -61,6 +61,8 @@ public partial class MainWindow : Window
             return;
         }
 
+        AuditoriaService.Registrar("CARPETA_OBSERVADA_CAMBIADA", $"Anterior={_carpetaObservada}; Nueva={ventana.CarpetaNueva}");
+
         _vigilancia.Dispose();
         _carpetaObservada = ventana.CarpetaNueva;
         TxtCarpetaObservada.Text = $"Carpeta observada: {_carpetaObservada}";

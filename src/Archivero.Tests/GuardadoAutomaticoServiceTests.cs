@@ -8,6 +8,7 @@ public class GuardadoAutomaticoServiceTests : IDisposable
     private readonly string _raiz;
     private readonly string _carpetaOrigen;
     private readonly string _carpetaDestino;
+    private readonly string _rutaLogOriginal;
 
     public GuardadoAutomaticoServiceTests()
     {
@@ -16,6 +17,11 @@ public class GuardadoAutomaticoServiceTests : IDisposable
         _carpetaDestino = Path.Combine(_raiz, "destino");
         Directory.CreateDirectory(_carpetaOrigen);
         Directory.CreateDirectory(_carpetaDestino);
+
+        // Procesar() ahora registra en el log de auditoria (Caso-9, mejora 2): redirigirlo para
+        // no escribir en el auditoria.log real del usuario al correr los tests.
+        _rutaLogOriginal = AuditoriaService.RutaLog;
+        AuditoriaService.RutaLog = Path.Combine(_raiz, "auditoria.log");
     }
 
     private static Marca MarcaDeLinea(CampoMarca campo, int indiceLinea)
@@ -175,6 +181,7 @@ public class GuardadoAutomaticoServiceTests : IDisposable
 
     public void Dispose()
     {
+        AuditoriaService.RutaLog = _rutaLogOriginal;
         Directory.Delete(_raiz, recursive: true);
     }
 }

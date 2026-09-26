@@ -121,6 +121,8 @@ public class VigilanciaCarpetaService : IDisposable
                 return;
             }
 
+            AuditoriaService.Registrar("DOCUMENTO_DETECTADO", rutaArchivo);
+
             // Caso-6, punto 1: el evento Created del FileSystemWatcher dispara apenas Windows
             // crea el archivo destino, no cuando termina de copiarse -- con archivos grandes
             // (ej. una guia escaneada en imagen, mucho más pesada que un PDF con texto) es
@@ -239,6 +241,10 @@ public class VigilanciaCarpetaService : IDisposable
         var esNuevo = _pendientes.Agregar(rutaArchivo, motivo);
         if (esNuevo)
         {
+            // Único punto donde un archivo pasa a pendientes, para cualquier motivo -- cubre a
+            // la vez "documento a pendientes con motivo" y "rechazo por validación" (Caso-9,
+            // mejora 2), sin duplicar el registro en cada lugar que llama a este método.
+            AuditoriaService.Registrar("DOCUMENTO_PENDIENTE", $"Motivo={motivo}; Ruta={rutaArchivo}");
             ArchivoPendienteDetectado?.Invoke(rutaArchivo);
         }
 
