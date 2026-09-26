@@ -1,6 +1,6 @@
 Estado actual: En piloto desde 2026-09-13 — pendiente de revisión.
 
-Última actualización del .exe: 2026-09-22, con `preguntas/Caso-8.md` (indicador de tiempo humano ahorrado, franja al pie de la ventana principal) — ver `ESTADO.md`. Caso-1 a Caso-6 y Caso-8 están cerrados; `preguntas/Caso-7.md` está pendiente, todavía sin empezar.
+Última actualización del .exe: 2026-09-26, con `preguntas/Caso-9.md` (validación de entradas/rutas contra path traversal y nombres inválidos de Windows, más un log de auditoría de texto plano con rotación) — ver `ESTADO.md`. Caso-1 a Caso-6, Caso-8 y Caso-9 están cerrados; `preguntas/Caso-7.md` sigue pendiente, todavía sin empezar.
 
 ## Qué contiene esta carpeta
 - `Archivero.exe`: ejecutable autocontenido de Windows (no requiere .NET instalado). Se abre con doble click.

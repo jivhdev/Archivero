@@ -3,17 +3,16 @@
 > Se actualiza al final de cada sesión. Es lo tercero que hay que leer (después de AGENTS.md y SPEC.md) para saber dónde quedamos.
 
 ## Última sesión
-- Fecha: 2026-09-22
-- Qué se hizo: `preguntas/Caso-8.md` (indicador de tiempo humano ahorrado) implementado y mergeado a `main`. Ver detalle en la sección "Caso-8" más abajo. 181 tests automáticos en total, todos verdes.
-- El `.exe` de `Distribucion/` se regeneró con Caso-8 (ver `Distribucion/ESTADO-DISTRIBUCION.md`).
-- A pedido de Javier, se hizo solo este caso esta sesión ("vamos en orden") — `preguntas/Caso-7.md` quedó explícitamente para otra sesión, sin tocar.
+- Fecha: 2026-09-26
+- Qué se hizo: `preguntas/Caso-9.md` (validación de entradas/rutas + log de auditoría — preparación de seguridad y trazabilidad antes de repartir Archivero a otros usuarios) implementado y mergeado a `main`, mejora por mejora, siguiendo estrictamente la forma de trabajo pedida: tests que fallan contra el código de hoy, corrección hasta que pasan, un commit por mejora, nota en `ESTADO.md`. Ver detalle en la sección "Caso-9" más abajo. 237 tests automáticos en total (71 nuevos), todos verdes.
+- El `.exe` de `Distribucion/` se regeneró con Caso-9 (ver `Distribucion/ESTADO-DISTRIBUCION.md`).
+- A pedido de Javier, se hizo solo este caso esta sesión — `preguntas/Caso-7.md` sigue pendiente, sin tocar.
 
 ## Siguiente paso
 - **`preguntas/Caso-7.md` está pendiente, sin empezar**: dos puntos independientes — "Imprimir después de archivar" (nueva opción configurable por tipo de documento) y ajustes de ventana. Leer el archivo completo antes de arrancar.
-- **Falta la verificación real a mano de Javier** de Caso-8 — el agente no puede correr la app de escritorio por su cuenta, solo confirmó que compila y pasa los tests automáticos (que no cubren la interfaz gráfica en sí, por convención de este proyecto). Pasos de prueba sugeridos en la descripción del PR (#27).
-- **Sigue sin confirmar, arrastrado de Caso-4** (sesión 2026-09-15): pide marcar la fecha del documento sin texto extraíble "de la misma forma que ya se hace para otros campos", pero un PDF así no tiene nada que extraer de una coordenada (por definición). Se implementó como un campo de texto para escribir la fecha a mano en su lugar — ver el detalle en la sección de Caso-4 más abajo.
-- Falta también la verificación a mano de Caso-6 (sesión 2026-09-16), que no se confirmó todavía.
-- Fuera de esto, no queda nada pendiente conocido del alcance de `SPEC.md` + Caso-1 a Caso-6 y Caso-8 (todos cerrados). Sigue abierto, como antes, cerrar los "Open issues" que quedan (nombres finales de interfaz).
+- **Falta la verificación real a mano de Javier** de Caso-9 — el agente no puede correr la app de escritorio por su cuenta, solo confirmó que compila y pasa los tests automáticos. Pasos de prueba sugeridos en la descripción de los PRs (#28, #29). Ojo en particular con la mejora 2: conviene que Javier abra `%LocalAppData%\Archivero\auditoria.log` después de usar la app un rato y confirme que el contenido es legible y tiene sentido.
+- Sigue arrastrándose sin confirmar: Caso-4 (fecha manual en vez de marcada por coordenadas, sesión 2026-09-15) y la verificación a mano de Caso-6 (sesión 2026-09-16) y Caso-8 (sesión 2026-09-22).
+- Fuera de esto, no queda nada pendiente conocido del alcance de `SPEC.md` + Caso-1 a Caso-6, Caso-8 y Caso-9 (todos cerrados). Sigue abierto, como antes, cerrar los "Open issues" que quedan (nombres finales de interfaz).
 
 ## Caso-1 — 5 correcciones/ampliaciones del piloto real (2026-09-14)
 Ver `preguntas/Caso-1.md` para el texto completo de cada punto tal como lo trajo Javier del vault.
@@ -198,6 +197,31 @@ Franja chica al pie de `MainWindow`, abajo de las tres listas: `X documentos arc
 - Total histórico acumulado desde siempre, no una ventana de tiempo. Se recalcula con un `COUNT` liviano cada vez que cambia, sin cachear nada en memoria.
 
 PR: [#27](https://github.com/jivhdev/Archivero/pull/27).
+
+## Caso-9 — validación de entradas/rutas + log de auditoría (2026-09-26)
+Ver `preguntas/Caso-9.md` para el texto completo. Preparación de seguridad y trazabilidad antes de repartir Archivero a otros usuarios. Las dos mejoras son independientes; ambas siguieron la forma de trabajo obligatoria del caso: tests que fallan contra el código de hoy primero, corrección después, un commit por mejora.
+
+### Mejora 1 — validación de entradas y rutas
+**Qué se corrigió:** `ClasificadorService.CalcularRutaDestino` nunca validaba el nombre extraído del PDF ni los segmentos de subcarpeta. Dos problemas reales de seguridad: (1) un nombre extraído con `..\..\` podía escapar de la carpeta de destino configurada (path traversal), sin ningún aviso; (2) un nombre con caracteres inválidos de Windows (ej. `"Factura:2026"`) hacía que `File.Copy` tirara una `ArgumentException` del sistema operativo que ningún catch específico de `GuardadoAutomaticoService` atrapaba — `VigilanciaCarpetaService.ProcesarArchivo` la tragaba en su catch genérico (RNF-2) y el documento desaparecía de la vista de Archivero sin dejar ningún rastro (nunca tocaba el original, pero tampoco avisaba nada — justo lo que el caso pide evitar).
+
+**Por qué:** son las dos formas más directas en que texto no confiable (extraído de un PDF, potencialmente corrupto o armado a propósito) puede terminar rompiendo o escapando del guardado de archivos.
+
+**Corrección:** `Servicios/ValidadorRutaService.cs`, centralizado, llamado desde `ClasificadorService.CalcularRutaDestino` (cubre REQ-002, REQ-003 y Caso-4 por igual, sin duplicar lógica): caracteres de control/byte nulo rechazan el documento entero; caracteres inválidos de Windows se reemplazan por `_` salvo que el resultado sea un nombre reservado (CON, PRN, COM1-9, LPT1-9), que rechaza; espacios/puntos sobrantes se recortan; como última línea de defensa **siempre** (incluso si lo anterior ya pasó), la ruta final resuelta con `Path.GetFullPath` tiene que quedar contenida en la carpeta configurada, comparando por segmentos completos de ruta; nombre >200 caracteres o ruta >240 rechaza. Cada rechazo lanza `ValidacionSeguridadException` con un `MotivoPendiente` específico y legible (4 valores nuevos), enrutado a pendientes en vez de una excepción sin manejar. Emisor y Tipo también se validan al escribirlos en el asistente (REQ-003).
+
+**Cómo se verificó:** 43 tests nuevos (`ValidadorRutaServiceTests` + extensión de `ClasificadorServiceTests`), que fallaban contra el código de ayer y pasan con la corrección; los 181 tests anteriores siguen pasando sin cambios. Nota real de la propia verificación: el test de nombre reservado de Windows ("CON") colgó el proceso de pruebas al intentar un `File.Copy` real contra el código **sin** el fix (Windows trata `CON` como un dispositivo especial, no un archivo) — confirmó en la práctica por qué hacía falta esta validación antes de seguir.
+
+PR: [#28](https://github.com/jivhdev/Archivero/pull/28).
+
+### Mejora 2 — log de auditoría
+**Qué se corrigió:** Archivero no dejaba ningún rastro persistente en disco de qué hizo con cada documento — sin log, sin forma de mostrar evidencia real de que el programa hizo lo que dijo que iba a hacer.
+
+**Por qué:** trazabilidad mínima antes de repartir Archivero a otros usuarios, para poder auditar el comportamiento real sin tener que confiar solo en lo que se ve en pantalla en el momento.
+
+**Corrección:** `Servicios/AuditoriaService.cs` — una línea de texto plano por evento (`[fecha-hora ISO-8601] TIPO_DE_EVENTO — detalle`) en `%LocalAppData%\Archivero\auditoria.log`; rotación a los 10MB (el actual pasa a `.1`, corriendo `.1→.2→.3` antes, nunca más de 3 rotados); saneo contra inyección de líneas (saltos de línea y caracteres de control en cualquier valor variable se reemplazan por un espacio, para que un valor nunca pueda partir una línea en dos ni fingir ser un evento aparte — clave justo para los valores que la mejora 1 rechaza); cualquier falla al escribir se traga en silencio, nunca interrumpe el guardado real. Registrado en todos los puntos pedidos: documento detectado, guardado automático (con Emisor/Tipo/ruta), documento a pendientes con el motivo (mismo punto de wiring cubre también los rechazos de la mejora 1), guardado manual sin texto, clasificación creada/vinculada/editada/borrada, y cambio de carpeta observada.
+
+**Cómo se verificó:** 13 tests nuevos (`AuditoriaServiceTests`), 11 de los cuales fallaban contra un esqueleto que no escribía nada, antes de implementar la lógica real. Se redirigió `AuditoriaService.RutaLog` en los tests que ahora disparan llamadas de auditoría de forma indirecta (`GuardadoAutomaticoServiceTests`, `VigilanciaCarpetaServiceTests`), y se confirmó a mano que no quedó ningún archivo nuevo en el `%LocalAppData%\Archivero` real de esta máquina tras correr toda la suite.
+
+PR: [#29](https://github.com/jivhdev/Archivero/pull/29).
 
 ## Decisiones abiertas / dudas para el usuario
 - Nombres finales de interfaz pendientes (no bloquean el desarrollo) — ver "Open issues" de `SPEC.md`: la sección "pendientes por reconocer", la sección "configuraciones/identificaciones/identidades", el botón de revisar/actualizar disponibilidad, la opción de "vincular a configuración existente".
