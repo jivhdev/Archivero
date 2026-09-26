@@ -669,6 +669,19 @@ public partial class IdentificarDocumentoWindow : Window
                     return;
                 }
 
+                // Caso-9, mejora 1: Emisor y Tipo pueden terminar formando parte de un nombre o
+                // ruta más adelante -- se validan/sanean acá, apenas se escriben.
+                try
+                {
+                    _emisor = ValidadorRutaService.ValidarYSanearSegmento(_emisor);
+                    _tipo = ValidadorRutaService.ValidarYSanearSegmento(_tipo);
+                }
+                catch (ValidacionSeguridadException ex)
+                {
+                    MostrarError(ex.Message);
+                    return;
+                }
+
                 if (!_marcas.ContainsKey(CampoMarca.Emisor) || !_marcas.ContainsKey(CampoMarca.Tipo))
                 {
                     MostrarError("Marcar el Emisor y el Tipo sobre el PDF.");

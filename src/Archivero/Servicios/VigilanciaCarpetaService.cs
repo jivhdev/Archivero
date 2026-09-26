@@ -223,6 +223,14 @@ public class VigilanciaCarpetaService : IDisposable
                     ArchivoRequiereAtencion?.Invoke(rutaArchivo, resultado.Detalle ?? resultado.Resultado.ToString());
                 }
                 break;
+
+            case ResultadoGuardadoAutomatico.ValidacionFallida:
+                // Caso-9, mejora 1(g): nunca un guardado silencioso -- motivo específico y legible.
+                if (AgregarAPendientes(rutaArchivo, resultado.MotivoValidacion!.Value))
+                {
+                    ArchivoRequiereAtencion?.Invoke(rutaArchivo, resultado.Detalle ?? resultado.Resultado.ToString());
+                }
+                break;
         }
     }
 

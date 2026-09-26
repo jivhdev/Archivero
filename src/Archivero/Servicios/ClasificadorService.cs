@@ -31,15 +31,35 @@ public static class ClasificadorService
         var subcarpeta = FormatoCarpetaService.ConstruirSubcarpeta(
             configuracion.FormatoCarpeta, configuracion.PatronCarpeta, fechaExtraida ?? DateTime.Now);
 
-        var carpetaFinal = string.IsNullOrEmpty(subcarpeta)
+        // Caso-9, mejora 1: cada nivel real de subcarpeta se valida/sanea por separado antes de
+        // combinarlo -- puede venir de un patrón personalizado escrito a mano (Caso-3).
+        var subcarpetaSaneada = string.IsNullOrEmpty(subcarpeta)
+            ? subcarpeta
+            : Path.Combine(subcarpeta
+                .Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                .Select(ValidadorRutaService.ValidarYSanearSegmento)
+                .ToArray());
+
+        var carpetaFinal = string.IsNullOrEmpty(subcarpetaSaneada)
             ? configuracion.CarpetaDestino
-            : Path.Combine(configuracion.CarpetaDestino, subcarpeta);
+            : Path.Combine(configuracion.CarpetaDestino, subcarpetaSaneada);
 
-        var nombreArchivo = configuracion.Renombrar && !string.IsNullOrWhiteSpace(nombreExtraido)
-            ? $"{nombreExtraido}{Path.GetExtension(rutaArchivoOrigen)}"
-            : Path.GetFileName(rutaArchivoOrigen);
+        var extension = Path.GetExtension(rutaArchivoOrigen);
+        var nombreOrigen = configuracion.Renombrar && !string.IsNullOrWhiteSpace(nombreExtraido)
+            ? nombreExtraido
+            : Path.GetFileNameWithoutExtension(rutaArchivoOrigen);
+        var nombreSinExtension = ValidadorRutaService.ValidarYSanearSegmento(nombreOrigen);
 
-        return Path.Combine(carpetaFinal, nombreArchivo);
+        var nombreArchivo = $"{nombreSinExtension}{extension}";
+        var rutaDestino = Path.Combine(carpetaFinal, nombreArchivo);
+
+        // (e) última línea de defensa, siempre: la ruta final ya resuelta tiene que quedar
+        // efectivamente dentro de la carpeta configurada, sin excepción.
+        var rutaResuelta = Path.GetFullPath(rutaDestino);
+        ValidadorRutaService.ValidarContenidaEnCarpeta(rutaResuelta, Path.GetFullPath(configuracion.CarpetaDestino));
+        ValidadorRutaService.ValidarLargos(nombreSinExtension, rutaResuelta);
+
+        return rutaDestino;
     }
 
     public static string Clasificar(

@@ -47,7 +47,38 @@ public enum MotivoPendiente
     PeriodoNuevo,
 
     /// <summary>El PDF no tiene texto extraíble: no se puede marcar por coordenadas (Caso-1, punto 1).</summary>
-    SinTextoExtraible
+    SinTextoExtraible,
+
+    /// <summary>Un texto que iba a formar parte del nombre/ruta tenía un carácter de control o un byte nulo (Caso-9, mejora 1a). Nunca se sanea, se rechaza.</summary>
+    TextoConCaracteresInvalidos,
+
+    /// <summary>El nombre resultante coincide con un nombre reservado de Windows (CON, PRN, COM1, etc. — Caso-9, mejora 1b).</summary>
+    NombreReservadoPorWindows,
+
+    /// <summary>La ruta final calculada, ya resuelta, no queda contenida en la carpeta configurada (Caso-9, mejora 1e — última línea de defensa contra path traversal).</summary>
+    RutaFueraDeCarpetaConfigurada,
+
+    /// <summary>El nombre de archivo o la ruta completa superan el largo máximo permitido (Caso-9, mejora 1f).</summary>
+    NombreORutaDemasiadoLarga
+}
+
+/// <summary>Texto legible para mostrarle al usuario por qué un documento quedó pendiente (Caso-9).</summary>
+public static class MotivoPendienteExtensiones
+{
+    public static string DescripcionLegible(this MotivoPendiente motivo) => motivo switch
+    {
+        MotivoPendiente.NuevoDocumento => "No coincide con ninguna configuración guardada.",
+        MotivoPendiente.ValorInvalido => "Un valor extraído del documento no tiene forma válida.",
+        MotivoPendiente.Duplicado => "Ya existe un archivo con ese nombre en el destino.",
+        MotivoPendiente.CarpetaNoDisponible => "La carpeta de destino no está disponible ahora mismo.",
+        MotivoPendiente.PeriodoNuevo => "La carpeta del período actual todavía no existe.",
+        MotivoPendiente.SinTextoExtraible => "El documento no tiene texto que se pueda leer.",
+        MotivoPendiente.TextoConCaracteresInvalidos => "Texto con caracteres inválidos",
+        MotivoPendiente.NombreReservadoPorWindows => "Nombre de archivo reservado por Windows",
+        MotivoPendiente.RutaFueraDeCarpetaConfigurada => "La ubicación calculada no corresponde a la carpeta configurada",
+        MotivoPendiente.NombreORutaDemasiadoLarga => "Nombre o ruta demasiado larga",
+        _ => motivo.ToString()
+    };
 }
 
 /// <summary>
