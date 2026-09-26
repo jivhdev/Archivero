@@ -848,6 +848,7 @@ public partial class IdentificarDocumentoWindow : Window
                 // El PDF de ejemplo elegido para revisar/corregir no se toca ni se mueve.
                 _configuraciones.ActualizarPatron(edicion.PatronId, marcas);
                 _configuraciones.ActualizarDestino(edicion.Configuracion.Id, _carpetaDestino, _formato, _patronCarpeta, _renombrar, _abrirDespuesDeGuardar);
+                AuditoriaService.Registrar("CLASIFICACION_EDITADA", $"Emisor={_emisor}; Tipo={_tipo}");
 
                 System.Windows.MessageBox.Show(this, "Cambios guardados.", "Archivero",
                     MessageBoxButton.OK, MessageBoxImage.Information);
@@ -905,10 +906,12 @@ public partial class IdentificarDocumentoWindow : Window
         if (_configuracionExistente is not null)
         {
             _configuraciones.AgregarPatronAConfiguracionExistente(_configuracionExistente.Id, marcas);
+            AuditoriaService.Registrar("CLASIFICACION_VINCULADA", $"Emisor={_emisor}; Tipo={_tipo}");
         }
         else
         {
             _configuraciones.GuardarNueva(_emisor, _tipo, _carpetaDestino, _formato, _patronCarpeta, _renombrar, marcas, _abrirDespuesDeGuardar);
+            AuditoriaService.Registrar("CLASIFICACION_CREADA", $"Emisor={_emisor}; Tipo={_tipo}");
         }
 
         _pendientes.Quitar(_rutaArchivo);
