@@ -31,6 +31,7 @@ public partial class IdentificarDocumentoWindow : Window
     private FormatoCarpeta _formato;
     private string? _patronCarpeta;
     private bool _renombrar;
+    private bool _preguntarNombre;
     private bool _abrirDespuesDeGuardar;
     private ConfiguracionDocumento? _configuracionExistente;
     private readonly (ConfiguracionDocumento Configuracion, int PatronId)? _edicion;
@@ -109,6 +110,7 @@ public partial class IdentificarDocumentoWindow : Window
         _formato = configuracion.FormatoCarpeta;
         _patronCarpeta = configuracion.PatronCarpeta;
         _renombrar = configuracion.Renombrar;
+        _preguntarNombre = configuracion.PreguntarNombre;
         _abrirDespuesDeGuardar = configuracion.AbrirDespuesDeGuardar;
 
         CmbEmisor.Text = _emisor;
@@ -123,8 +125,7 @@ public partial class IdentificarDocumentoWindow : Window
         _tipoOrganizacionPrecargado = _formato == FormatoCarpeta.Directo ? null : _formato;
         _patronPrecargadoParaControl = _patronCarpeta;
 
-        RbMantenerNombre.IsChecked = !_renombrar;
-        RbExtraerNombre.IsChecked = _renombrar;
+        MarcarOpcionNombre();
         ChkAbrirDespuesDeGuardar.IsChecked = _abrirDespuesDeGuardar;
 
         foreach (var marca in patron.Marcas)
@@ -167,6 +168,11 @@ public partial class IdentificarDocumentoWindow : Window
             RbExtraerNombre.IsChecked = borrador.Renombrar == true;
         }
 
+        if (borrador.PreguntarNombre == true)
+        {
+            RbPreguntarNombre.IsChecked = true;
+        }
+
         foreach (var marca in borrador.Marcas)
         {
             _marcas[marca.Campo] = marca;
@@ -182,7 +188,7 @@ public partial class IdentificarDocumentoWindow : Window
 
         var formatoElegido = RbGuardarDirecto.IsChecked == true ? FormatoCarpeta.Directo : ControlOrganizacion.FormatoElegido;
 
-        var renombrarElegido = RbMantenerNombre.IsChecked == true ? false
+        var renombrarElegido = RbMantenerNombre.IsChecked == true || RbPreguntarNombre.IsChecked == true ? false
             : RbExtraerNombre.IsChecked == true ? true
             : (bool?)null;
 
@@ -195,6 +201,7 @@ public partial class IdentificarDocumentoWindow : Window
             GuardaEnSubcarpetas = RbGuardarSubcarpetas.IsChecked == true,
             PatronCarpeta = LeerPatronElegido(),
             Renombrar = renombrarElegido,
+            PreguntarNombre = RbPreguntarNombre.IsChecked == true,
             Marcas = _marcas.Values.ToList()
         };
 
@@ -475,6 +482,13 @@ public partial class IdentificarDocumentoWindow : Window
         }
     }
 
+    private void MarcarOpcionNombre()
+    {
+        RbMantenerNombre.IsChecked = !_renombrar && !_preguntarNombre;
+        RbExtraerNombre.IsChecked = _renombrar;
+        RbPreguntarNombre.IsChecked = _preguntarNombre;
+    }
+
     private void ChkAbrirDespuesDeGuardar_Changed(object sender, RoutedEventArgs e)
     {
         _abrirDespuesDeGuardar = ChkAbrirDespuesDeGuardar.IsChecked == true;
@@ -487,6 +501,7 @@ public partial class IdentificarDocumentoWindow : Window
         _formato = existente.FormatoCarpeta;
         _patronCarpeta = existente.PatronCarpeta;
         _renombrar = existente.Renombrar;
+        _preguntarNombre = existente.PreguntarNombre;
         _abrirDespuesDeGuardar = existente.AbrirDespuesDeGuardar;
 
         TxtCarpetaDestino.Text = _carpetaDestino;
@@ -496,9 +511,8 @@ public partial class IdentificarDocumentoWindow : Window
         RbGuardarSubcarpetas.IsChecked = _formato != FormatoCarpeta.Directo;
         RbGuardarDirecto.IsEnabled = RbGuardarSubcarpetas.IsEnabled = false;
 
-        RbMantenerNombre.IsChecked = !_renombrar;
-        RbExtraerNombre.IsChecked = _renombrar;
-        RbMantenerNombre.IsEnabled = RbExtraerNombre.IsEnabled = false;
+        MarcarOpcionNombre();
+        RbMantenerNombre.IsEnabled = RbExtraerNombre.IsEnabled = RbPreguntarNombre.IsEnabled = false;
 
         ChkAbrirDespuesDeGuardar.IsChecked = _abrirDespuesDeGuardar;
         ChkAbrirDespuesDeGuardar.IsEnabled = false;
@@ -639,7 +653,17 @@ public partial class IdentificarDocumentoWindow : Window
                 $"{OrganizacionCarpetaService.NombreDe(_formato)} — ejemplo de carpeta: {OrganizacionCarpetaService.FormatearEjemplo(_patronCarpeta, fechaReferencia)}",
             _ => OrganizacionCarpetaService.NombreDe(_formato)
         };
-        var nombreTexto = _renombrar ? "se extrae del campo marcado en el PDF" : "se mantiene el nombre original";
+        var nombreTexto = _renombrar ? "se extrae del campo marcado en el PDF"
+            : _preguntarNombre ? "se pregunta cada vez, antes de guardar"
+            : "se mantiene el nombre original";
+
+        // Al editar no se guarda ningún documento, así que no hay nombre que pedir acá.
+        var pedirNombreAhora = _preguntarNombre && _edicion is null;
+        PanelNombreEsteDocumento.Visibility = pedirNombreAhora ? Visibility.Visible : Visibility.Collapsed;
+        if (pedirNombreAhora && string.IsNullOrWhiteSpace(TxtNombreEsteDocumento.Text))
+        {
+            TxtNombreEsteDocumento.Text = System.IO.Path.GetFileNameWithoutExtension(_rutaArchivo);
+        }
 
         var encabezado = _edicion is not null
             ? "Se van a actualizar las marcas y la configuración de este patrón (no se mueve ningún archivo):\n\n"
@@ -781,13 +805,14 @@ public partial class IdentificarDocumentoWindow : Window
             case Paso.NombreArchivo:
                 if (_configuracionExistente is null)
                 {
-                    if (RbMantenerNombre.IsChecked != true && RbExtraerNombre.IsChecked != true)
+                    if (RbMantenerNombre.IsChecked != true && RbExtraerNombre.IsChecked != true && RbPreguntarNombre.IsChecked != true)
                     {
                         MostrarError("Elegir cómo se va a llamar el archivo.");
                         return;
                     }
 
                     _renombrar = RbExtraerNombre.IsChecked == true;
+                    _preguntarNombre = RbPreguntarNombre.IsChecked == true;
                 }
 
                 if (_renombrar && !_marcas.ContainsKey(CampoMarca.NombreArchivo))
@@ -847,7 +872,7 @@ public partial class IdentificarDocumentoWindow : Window
                 // Modo edicion: solo se actualizan las marcas del patron y la configuracion.
                 // El PDF de ejemplo elegido para revisar/corregir no se toca ni se mueve.
                 _configuraciones.ActualizarPatron(edicion.PatronId, marcas);
-                _configuraciones.ActualizarDestino(edicion.Configuracion.Id, _carpetaDestino, _formato, _patronCarpeta, _renombrar, _abrirDespuesDeGuardar);
+                _configuraciones.ActualizarDestino(edicion.Configuracion.Id, _carpetaDestino, _formato, _patronCarpeta, _renombrar, _abrirDespuesDeGuardar, _preguntarNombre);
                 AuditoriaService.Registrar("CLASIFICACION_EDITADA", $"Emisor={_emisor}; Tipo={_tipo}");
 
                 System.Windows.MessageBox.Show(this, "Cambios guardados.", "Archivero",
@@ -873,6 +898,21 @@ public partial class IdentificarDocumentoWindow : Window
                 AbrirDespuesDeGuardar = _abrirDespuesDeGuardar,
                 Patrones = []
             };
+
+            // Caso-11, punto 1: el nombre escrito en el paso de confirmar se usa como si fuera
+            // un nombre extraído, solo para este documento; la configuración guarda "preguntar".
+            if (_preguntarNombre)
+            {
+                var nombreEscrito = TxtNombreEsteDocumento.Text.Trim();
+                if (string.IsNullOrWhiteSpace(nombreEscrito))
+                {
+                    MostrarError("Escribir el nombre para este documento.");
+                    return;
+                }
+
+                configuracionParaClasificar = configuracionParaClasificar with { Renombrar = true, PreguntarNombre = false };
+                nombreExtraido = nombreEscrito;
+            }
 
             string rutaFinal;
             try
@@ -910,7 +950,7 @@ public partial class IdentificarDocumentoWindow : Window
         }
         else
         {
-            _configuraciones.GuardarNueva(_emisor, _tipo, _carpetaDestino, _formato, _patronCarpeta, _renombrar, marcas, _abrirDespuesDeGuardar);
+            _configuraciones.GuardarNueva(_emisor, _tipo, _carpetaDestino, _formato, _patronCarpeta, _renombrar, marcas, _abrirDespuesDeGuardar, _preguntarNombre);
             AuditoriaService.Registrar("CLASIFICACION_CREADA", $"Emisor={_emisor}; Tipo={_tipo}");
         }
 

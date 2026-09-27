@@ -107,6 +107,10 @@ public static class BaseDeDatos
         AgregarColumnaSiFalta(conexion, "Configuraciones", "AbrirDespuesDeGuardar", "INTEGER NOT NULL DEFAULT 0");
 
         MigrarCheckFormatoCarpeta(conexion);
+
+        // Después de la migración de Caso-3 a propósito: esa migración recrea Configuraciones
+        // copiando una lista fija de columnas, y una columna agregada antes se perdería.
+        AgregarColumnaSiFalta(conexion, "Configuraciones", "PreguntarNombre", "INTEGER NOT NULL DEFAULT 0");
     }
 
     /// <summary>

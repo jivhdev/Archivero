@@ -150,7 +150,7 @@ public class ConfiguracionDocumentoRepositoryTests : IDisposable
             "Banco Galicia", "Resumen de cuenta", @"C:\Destino", FormatoCarpeta.Directo, null, false,
             [new Marca(CampoMarca.Emisor, 0, 0.1, 0.1, 0.2, 0.05), new Marca(CampoMarca.Tipo, 0, 0.1, 0.2, 0.2, 0.05)]);
 
-        repo.ActualizarDestino(configuracionId, @"C:\OtroDestino", FormatoCarpeta.Anio, "yyyy", true, true);
+        repo.ActualizarDestino(configuracionId, @"C:\OtroDestino", FormatoCarpeta.Anio, "yyyy", true, true, false);
 
         var configuracion = repo.BuscarPorEmisorYTipo("Banco Galicia", "Resumen de cuenta");
 
@@ -160,6 +160,42 @@ public class ConfiguracionDocumentoRepositoryTests : IDisposable
         Assert.Equal("yyyy", configuracion.PatronCarpeta);
         Assert.True(configuracion.Renombrar);
         Assert.True(configuracion.AbrirDespuesDeGuardar);
+    }
+
+    // ----- Caso-11, punto 1: "Preguntar el nombre cada vez" -----
+
+    [Fact]
+    public void GuardarNueva_SinIndicarPreguntarNombre_ArrancaEnFalse()
+    {
+        var repo = new ConfiguracionDocumentoRepository();
+        repo.GuardarNueva("Banco Galicia", "Resumen de cuenta", @"C:\Destino", FormatoCarpeta.Directo, null, false, new List<Marca>());
+
+        Assert.False(repo.BuscarPorEmisorYTipo("Banco Galicia", "Resumen de cuenta")!.PreguntarNombre);
+    }
+
+    [Fact]
+    public void GuardarNueva_ConPreguntarNombre_LoPersisteEnTodasLasLecturas()
+    {
+        var repo = new ConfiguracionDocumentoRepository();
+        repo.GuardarNueva("Banco Galicia", "Resumen de cuenta", @"C:\Destino", FormatoCarpeta.Directo, null, false,
+            new List<Marca>(), preguntarNombre: true);
+
+        Assert.True(repo.BuscarPorEmisorYTipo("Banco Galicia", "Resumen de cuenta")!.PreguntarNombre);
+        Assert.True(Assert.Single(repo.ObtenerTodas()).PreguntarNombre);
+        Assert.True(Assert.Single(repo.ObtenerTodasConPatrones()).PreguntarNombre);
+    }
+
+    [Fact]
+    public void ActualizarDestino_ActivaYDesactivaPreguntarNombre()
+    {
+        var repo = new ConfiguracionDocumentoRepository();
+        var id = repo.GuardarNueva("Banco Galicia", "Resumen de cuenta", @"C:\Destino", FormatoCarpeta.Directo, null, false, new List<Marca>());
+
+        repo.ActualizarDestino(id, @"C:\Destino", FormatoCarpeta.Directo, null, false, false, true);
+        Assert.True(repo.BuscarPorEmisorYTipo("Banco Galicia", "Resumen de cuenta")!.PreguntarNombre);
+
+        repo.ActualizarDestino(id, @"C:\Destino", FormatoCarpeta.Directo, null, false, false, false);
+        Assert.False(repo.BuscarPorEmisorYTipo("Banco Galicia", "Resumen de cuenta")!.PreguntarNombre);
     }
 
     [Fact]

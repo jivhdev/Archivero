@@ -11,7 +11,8 @@ public enum ResultadoGuardadoAutomatico
     Duplicado,
     CarpetaNoDisponible,
     PeriodoNuevo,
-    ValidacionFallida
+    ValidacionFallida,
+    NombrePorConfirmar
 }
 
 public record ResultadoProcesamiento(
@@ -80,6 +81,36 @@ public static class GuardadoAutomaticoService
             return new ResultadoProcesamiento(ResultadoGuardadoAutomatico.ValorInvalido, Detalle: error);
         }
 
+        // Caso-11, punto 1: se pregunta antes que el período nuevo, para que el nombre confirmado
+        // llegue también a la pantalla de crear período (si no, guardaría con el nombre original).
+        if (configuracionConPatronCoincidente.PreguntarNombre)
+        {
+            return new ResultadoProcesamiento(ResultadoGuardadoAutomatico.NombrePorConfirmar);
+        }
+
+        return Guardar(rutaArchivo, configuracionConPatronCoincidente, campos);
+    }
+
+    /// <summary>
+    /// Caso-11, punto 1: termina el guardado automático de un documento cuya configuración pide
+    /// el nombre cada vez, con el nombre que el usuario escribió o confirmó. Carpeta, período,
+    /// duplicados y validaciones son los mismos de siempre.
+    /// </summary>
+    public static ResultadoProcesamiento GuardarConNombreConfirmado(
+        string rutaArchivo, ConfiguracionDocumento configuracionConPatronCoincidente, string nombreConfirmado)
+    {
+        var (campos, error) = ExtraerCamposParaClasificar(rutaArchivo, configuracionConPatronCoincidente with { Renombrar = false });
+        if (campos is null)
+        {
+            return new ResultadoProcesamiento(ResultadoGuardadoAutomatico.ValorInvalido, Detalle: error);
+        }
+
+        var configuracionConNombre = configuracionConPatronCoincidente with { Renombrar = true, PreguntarNombre = false };
+        return Guardar(rutaArchivo, configuracionConNombre, campos with { NombreExtraido = nombreConfirmado });
+    }
+
+    private static ResultadoProcesamiento Guardar(string rutaArchivo, ConfiguracionDocumento configuracionConPatronCoincidente, CamposExtraidos campos)
+    {
         // Caso-1, punto 2 (ultimo parrafo): si la carpeta del periodo actual todavia no existe,
         // Archivero no la crea sola -- eso pasa a ser una decision activa del usuario (pendiente
         // con su propia pantalla), nunca una suposicion automatica del programa.
