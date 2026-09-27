@@ -1,3 +1,6 @@
+using System.IO;
+using Archivero.Datos;
+
 namespace Archivero.Servicios;
 
 /// <summary>
@@ -23,5 +26,29 @@ public static class LimpiezaNombreService
 
         var sinCeros = nombre.TrimStart('0');
         return sinCeros.Length == 0 ? "0" : sinCeros;
+    }
+
+    /// <summary>Repite sobre un nombre nuevo, en el mismo orden, los botones de limpieza guardados en un atajo (Caso-11, punto 4).</summary>
+    public static string AplicarRegla(string nombreOriginal, IEnumerable<OperacionNombre> regla) =>
+        regla.Aggregate(nombreOriginal, (nombre, operacion) => operacion switch
+        {
+            OperacionNombre.Borrar => string.Empty,
+            OperacionNombre.DejarSoloNumeros => DejarSoloNumeros(nombre),
+            OperacionNombre.QuitarCerosIzquierda => QuitarCerosIzquierda(nombre),
+            _ => nombre
+        });
+
+    /// <summary>Nombre sugerido para un atajo nuevo: la carpeta madre y, si organiza por fecha, el tipo de organización.</summary>
+    public static string SugerirNombreAtajo(string carpetaMadre, FormatoCarpeta formato)
+    {
+        var nombreCarpeta = Path.GetFileName(carpetaMadre.TrimEnd('\\', '/'));
+        if (nombreCarpeta.Length == 0)
+        {
+            nombreCarpeta = carpetaMadre;
+        }
+
+        return formato == FormatoCarpeta.Directo
+            ? nombreCarpeta
+            : $"{nombreCarpeta} ({OrganizacionCarpetaService.NombreDe(formato)})";
     }
 }

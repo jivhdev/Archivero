@@ -85,6 +85,15 @@ public static class BaseDeDatos
                 PatronCarpeta TEXT NULL
             );
 
+            CREATE TABLE IF NOT EXISTS AtajosGuardadoRapido (
+                Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                Nombre TEXT NOT NULL UNIQUE,
+                CarpetaMadre TEXT NOT NULL,
+                FormatoCarpeta TEXT NOT NULL,
+                PatronCarpeta TEXT NULL,
+                ReglaNombre TEXT NOT NULL DEFAULT ''
+            );
+
             CREATE TABLE IF NOT EXISTS GuardadosRecientes (
                 Id INTEGER PRIMARY KEY AUTOINCREMENT,
                 RutaFinal TEXT NOT NULL,

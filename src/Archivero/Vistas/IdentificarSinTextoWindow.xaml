@@ -33,10 +33,24 @@
             <TextBlock Name="TxtInstruccion" Foreground="Gray" TextWrapping="Wrap" Margin="0,0,0,16"
                        Text="No se puede marcar ningún dato por coordenadas (ej. es una imagen escaneada)."/>
 
-            <!-- Paso "Elegir": las dos opciones de Caso-4, punto 3 -->
+            <!-- Paso "Elegir": las dos opciones de Caso-4, punto 3, y los accesos rápidos de Caso-11, punto 4 -->
             <StackPanel Name="PanelElegir">
                 <Button Name="BtnCrearUbicacionNueva" Content="Crear ubicación nueva" Padding="8,6" Margin="0,0,0,8" HorizontalAlignment="Stretch" Click="BtnCrearUbicacionNueva_Click"/>
                 <Button Name="BtnVerUbicaciones" Content="Ver ubicaciones disponibles" Padding="8,6" HorizontalAlignment="Stretch" Click="BtnVerUbicaciones_Click"/>
+
+                <TextBlock Text="Accesos rápidos" FontWeight="Bold" Margin="0,20,0,4"/>
+                <TextBlock Name="TxtSinAtajos" Foreground="Gray" TextWrapping="Wrap"
+                           Text="Todavía no hay accesos rápidos. Se crean al final de &quot;Crear ubicación nueva&quot;."/>
+                <ScrollViewer MaxHeight="300" VerticalScrollBarVisibility="Auto">
+                    <ItemsControl Name="ListaAtajos">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Content="{Binding Texto}" ToolTip="{Binding Detalle}" Tag="{Binding Atajo}"
+                                        Padding="8,6" Margin="0,0,0,6" HorizontalContentAlignment="Left" Click="BtnAtajo_Click"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
             </StackPanel>
 
             <!-- 3a: elegir carpeta madre -->
@@ -54,10 +68,10 @@
                 <StackPanel Name="PanelMarcarFecha">
                     <TextBlock Text="Fecha del documento" FontWeight="Bold"/>
                     <TextBlock Foreground="Gray" TextWrapping="Wrap" Margin="0,2,0,4"
-                               Text="No hay texto para extraer de este documento: escribí la fecha a mano (ej. 15/03/2026)."/>
+                               Text="No hay texto para extraer de este documento: escribir la fecha a mano (ej. 15/03/2026)."/>
                     <TextBox Name="TxtFechaManual" TextChanged="TxtFechaManual_TextChanged"/>
                     <TextBlock Name="TxtFechaOpcional" Visibility="Collapsed" Foreground="Gray" TextWrapping="Wrap" Margin="0,4,0,0"
-                               Text="Para este tipo de organización la fecha es opcional: si no la escribís, se usa la fecha de hoy."/>
+                               Text="Para este tipo de organización la fecha es opcional: si se deja vacía, se usa la fecha de hoy."/>
                 </StackPanel>
 
                 <Button Content="Continuar" Padding="6,4" Margin="0,16,0,0" HorizontalAlignment="Left" Click="BtnContinuarOrganizacion_Click"/>
@@ -85,6 +99,14 @@
             <StackPanel Name="PanelNombreArchivo" Visibility="Collapsed">
                 <TextBlock Text="Nombre con el que se guarda el archivo" FontWeight="Bold" Margin="0,0,0,4"/>
                 <TextBlock Name="TxtCarpetaDestinoFinal" Foreground="Gray" TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                <!-- Caso-11, punto 4: un acceso rápido organizado por fecha necesita la fecha de este documento -->
+                <StackPanel Name="PanelFechaAtajo" Visibility="Collapsed" Margin="0,0,0,8">
+                    <TextBlock Text="Fecha del documento" FontWeight="Bold"/>
+                    <TextBlock Name="TxtAyudaFechaAtajo" Foreground="Gray" TextWrapping="Wrap" Margin="0,2,0,4"/>
+                    <TextBox Name="TxtFechaAtajo" TextChanged="TxtFechaAtajo_TextChanged"/>
+                </StackPanel>
+
                 <TextBox Name="TxtNombreArchivo" Margin="0,0,0,8"/>
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                     <Button Content="Borrar" Padding="6,4" Margin="0,0,8,0" Click="BtnBorrarNombre_Click"/>

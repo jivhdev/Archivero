@@ -38,7 +38,7 @@ public partial class OrganizacionCarpetaControl : UserControl
 
     public bool FechaEsAplicable => _tipoOrganizacion is not (null or FormatoCarpeta.Directo);
 
-    public bool FechaEsOpcional => _tipoOrganizacion is FormatoCarpeta.MesSinAnio or FormatoCarpeta.SemanaDelMes;
+    public bool FechaEsOpcional => _tipoOrganizacion is { } tipo && OrganizacionCarpetaService.FechaEsOpcional(tipo);
 
     public OrganizacionCarpetaControl()
     {
