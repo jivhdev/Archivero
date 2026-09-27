@@ -100,6 +100,10 @@ public static class OrganizacionCarpetaService
         ],
     };
 
+    /// <summary>Tipos cuya subcarpeta no depende del año: sin fecha del documento, se usa la de hoy.</summary>
+    public static bool FechaEsOpcional(FormatoCarpeta formato) =>
+        formato is FormatoCarpeta.MesSinAnio or FormatoCarpeta.SemanaDelMes;
+
     public static string NombreDe(FormatoCarpeta formato) =>
         formato == FormatoCarpeta.Personalizado
             ? NombrePersonalizado

@@ -128,3 +128,25 @@ public record ConfiguracionDocumento
 /// asistente ni navegar a mano por el explorador de Windows.
 /// </summary>
 public record UbicacionSinTexto(int Id, string CarpetaMadre, FormatoCarpeta Formato, string? Patron);
+
+/// <summary>Un botón de limpieza de nombre del paso final del flujo sin texto (Caso-4 punto 4, Caso-11 punto 6).</summary>
+public enum OperacionNombre
+{
+    Borrar,
+    DejarSoloNumeros,
+    QuitarCerosIzquierda
+}
+
+/// <summary>
+/// Atajo de guardado rápido del flujo de "distribuir" (Caso-11, punto 4): la combinación
+/// completa de una vez (carpeta madre, formato/patrón y regla de nombre) guardada con un nombre,
+/// para aplicarla de un click. La regla de nombre es la secuencia de botones de limpieza que el
+/// usuario usó esa vez, que se vuelve a aplicar sobre el nombre original de cada documento nuevo.
+/// </summary>
+public record AtajoGuardadoRapido(
+    int Id,
+    string Nombre,
+    string CarpetaMadre,
+    FormatoCarpeta Formato,
+    string? Patron,
+    IReadOnlyList<OperacionNombre> ReglaNombre);
