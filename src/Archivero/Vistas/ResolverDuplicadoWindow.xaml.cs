@@ -55,6 +55,57 @@ public partial class ResolverDuplicadoWindow : Window
         }
     }
 
+    private System.Windows.Controls.ScrollViewer? _scrollMovidoPorSincronizacion;
+
+    private void SliderZoom_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        // El slider dispara ValueChanged durante InitializeComponent, antes de que existan las escalas.
+        if (EscalaExistente is null || EscalaNuevo is null)
+        {
+            return;
+        }
+
+        var escala = e.NewValue / 100.0;
+        EscalaExistente.ScaleX = EscalaExistente.ScaleY = escala;
+        EscalaNuevo.ScaleX = EscalaNuevo.ScaleY = escala;
+        TxtZoom.Text = $"{e.NewValue:0}%";
+    }
+
+    /// <summary>
+    /// Mueve el otro documento a la misma posición relativa (no en píxeles: los dos documentos
+    /// pueden tener tamaños distintos). ScrollToXxxOffset se aplica recién en el próximo pase de
+    /// layout, así que el ScrollChanged que provoca llega después: se marca ese ScrollViewer para
+    /// ignorar ese único evento y no rebotar el movimiento de vuelta al original.
+    /// </summary>
+    private void Scroll_ScrollChanged(object sender, System.Windows.Controls.ScrollChangedEventArgs e)
+    {
+        var origen = (System.Windows.Controls.ScrollViewer)sender;
+
+        if (origen == _scrollMovidoPorSincronizacion)
+        {
+            _scrollMovidoPorSincronizacion = null;
+            return;
+        }
+
+        if (ChkSincronizarScroll?.IsChecked != true || (e.HorizontalChange == 0 && e.VerticalChange == 0))
+        {
+            return;
+        }
+
+        var destino = origen == ScrollExistente ? ScrollNuevo : ScrollExistente;
+        var horizontal = origen.ScrollableWidth > 0 ? origen.HorizontalOffset / origen.ScrollableWidth * destino.ScrollableWidth : destino.HorizontalOffset;
+        var vertical = origen.ScrollableHeight > 0 ? origen.VerticalOffset / origen.ScrollableHeight * destino.ScrollableHeight : destino.VerticalOffset;
+
+        if (Math.Abs(horizontal - destino.HorizontalOffset) < 0.5 && Math.Abs(vertical - destino.VerticalOffset) < 0.5)
+        {
+            return;
+        }
+
+        _scrollMovidoPorSincronizacion = destino;
+        destino.ScrollToHorizontalOffset(horizontal);
+        destino.ScrollToVerticalOffset(vertical);
+    }
+
     private void ChkConfirmarMismoDocumento_Changed(object sender, RoutedEventArgs e)
     {
         BtnEliminarDuplicado.IsEnabled = ChkConfirmarMismoDocumento.IsChecked == true;
