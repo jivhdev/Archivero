@@ -28,7 +28,14 @@
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <TextBlock Grid.Row="0" Text="Pendientes por reconocer" FontWeight="Bold" Margin="0,0,0,8"/>
+            <DockPanel Grid.Row="0" Margin="0,0,0,8">
+                <!-- Caso-11, punto 3: red de seguridad manual; el reproceso ya corre solo al crear
+                     o editar una configuración. -->
+                <Button Name="BtnReprocesarPendientes" DockPanel.Dock="Right" Content="Reprocesar pendientes" Padding="8,2"
+                        Click="BtnReprocesarPendientes_Click"
+                        ToolTip="Vuelve a intentar reconocer todos los pendientes contra las configuraciones guardadas."/>
+                <TextBlock Text="Pendientes por reconocer" FontWeight="Bold" VerticalAlignment="Center"/>
+            </DockPanel>
             <ListBox Grid.Row="1" Name="ListaPendientes" DisplayMemberPath="NombreArchivo" MouseDoubleClick="ListaPendientes_MouseDoubleClick"/>
         </Grid>
 

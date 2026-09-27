@@ -121,6 +121,48 @@ public partial class MainWindow : Window
 
         var ventana = new VerGuardadoWindow(guardado.RutaFinal) { Owner = this };
         ventana.ShowDialog();
+
+        if (ventana.ConfiguracionEditada)
+        {
+            _ = ReprocesarPendientesAsync();
+        }
+    }
+
+    private void AbrirAsistenteIdentificacion(string rutaArchivo)
+    {
+        var asistente = new IdentificarDocumentoWindow(rutaArchivo) { Owner = this };
+        if (asistente.ShowDialog() == true)
+        {
+            _ = ReprocesarPendientesAsync();
+        }
+    }
+
+    private void BtnReprocesarPendientes_Click(object sender, RoutedEventArgs e) => _ = ReprocesarPendientesAsync();
+
+    /// <summary>
+    /// Caso-11, punto 3: se llama sola apenas se crea o se edita una configuración (y a mano con
+    /// el botón), para que un documento que ya estaba esperando en pendientes se clasifique sin
+    /// tener que sacarlo y volver a meterlo en la carpeta. Corre fuera del hilo de la interfaz
+    /// porque lee cada PDF pendiente; VigilanciaCarpetaService lo serializa con el watcher.
+    /// </summary>
+    private async Task ReprocesarPendientesAsync()
+    {
+        BtnReprocesarPendientes.IsEnabled = false;
+        try
+        {
+            var vigilancia = _vigilancia;
+            await Task.Run(vigilancia.ReprocesarPendientes);
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(this, $"No se pudieron reprocesar los pendientes: {ex.Message}", "Archivero",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally
+        {
+            BtnReprocesarPendientes.IsEnabled = true;
+            CargarPendientes();
+        }
     }
 
     private void AvisarCarpetaNoDisponible()
@@ -191,8 +233,7 @@ public partial class MainWindow : Window
         }
         else
         {
-            var asistente = new IdentificarDocumentoWindow(pendiente.RutaArchivo) { Owner = this };
-            asistente.ShowDialog();
+            AbrirAsistenteIdentificacion(pendiente.RutaArchivo);
         }
 
         CargarPendientes();
@@ -229,8 +270,7 @@ public partial class MainWindow : Window
         {
             // Ya no coincide con ninguna configuracion (por ejemplo, se borro) -> tratarlo
             // como documento nuevo en vez de romper.
-            var asistente = new IdentificarDocumentoWindow(rutaArchivo) { Owner = this };
-            asistente.ShowDialog();
+            AbrirAsistenteIdentificacion(rutaArchivo);
             return;
         }
 
@@ -260,8 +300,7 @@ public partial class MainWindow : Window
         var coincidencia = CoincidenciaAutomaticaService.BuscarConfiguracionQueCoincide(rutaArchivo, configuraciones);
         if (coincidencia is null)
         {
-            var asistente = new IdentificarDocumentoWindow(rutaArchivo) { Owner = this };
-            asistente.ShowDialog();
+            AbrirAsistenteIdentificacion(rutaArchivo);
             return;
         }
 
@@ -285,5 +324,10 @@ public partial class MainWindow : Window
     {
         var ventana = new AdministrarClasificacionesWindow { Owner = this };
         ventana.ShowDialog();
+
+        if (ventana.HuboConfiguracionesEditadas)
+        {
+            _ = ReprocesarPendientesAsync();
+        }
     }
 }
