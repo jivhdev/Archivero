@@ -79,14 +79,14 @@ public class VigilanciaCarpetaService : IDisposable
     /// Caso-11, punto 3: vuelve a intentar la coincidencia automática contra todos los
     /// documentos que están hoy en "pendientes por reconocer" -- no solo contra los que lleguen
     /// de ahora en adelante. Se llama apenas se crea o edita una configuración, y a mano desde
-    /// el botón "Reprocesar pendientes". Los PDF sin texto extraíble no se reprocesan: nunca se
-    /// clasifican solos, tengan la configuración que tengan (Caso-4).
+    /// el botón "Reprocesar pendientes". Los "pendientes de distribuir" (PDF sin texto o archivos
+    /// dañados) no se reprocesan: nunca se clasifican solos, tengan la configuración que tengan.
     /// </summary>
     public void ReprocesarPendientes()
     {
         ReconciliarPendientesConDisco();
 
-        foreach (var pendiente in _pendientes.ObtenerTodos().Where(p => p.Motivo != MotivoPendiente.SinTextoExtraible))
+        foreach (var pendiente in _pendientes.ObtenerTodos().Where(p => !p.Motivo.EsPendienteDeDistribuir()))
         {
             ProcesarArchivo(pendiente.RutaArchivo, esReproceso: true);
         }
@@ -163,7 +163,21 @@ public class VigilanciaCarpetaService : IDisposable
                 return;
             }
 
-            if (!LectorPdf.TieneTextoExtraible(rutaArchivo))
+            bool tieneTexto;
+            try
+            {
+                tieneTexto = LectorPdf.TieneTextoExtraible(rutaArchivo);
+            }
+            catch (Exception)
+            {
+                // Caso-11, punto 5: PDFium no puede abrirlo (dañado, vacío o truncado). Antes
+                // RNF-2 lo descartaba en silencio y quedaba invisible; ahora va a "Pendientes de
+                // distribuir" para que el usuario decida dónde guardarlo a mano. Nunca se toca.
+                AgregarAPendientes(rutaArchivo, MotivoPendiente.ArchivoDanado);
+                return;
+            }
+
+            if (!tieneTexto)
             {
                 // No es un PDF con texto plano extraible (ej. una imagen escaneada): no hay
                 // coordenadas que comparar ni Emisor/Tipo que identificar, asi que nunca se

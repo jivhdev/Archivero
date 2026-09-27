@@ -15,10 +15,21 @@
             <ColumnDefinition Width="360"/>
         </Grid.ColumnDefinitions>
 
-        <local:VisorPdfConMarcado x:Name="Visor" Grid.Column="0" Margin="0,0,16,0"/>
+        <Grid Grid.Column="0" Margin="0,0,16,0">
+            <local:VisorPdfConMarcado x:Name="Visor"/>
+
+            <!-- Caso-11, punto 5: si el archivo está dañado, el visor no puede abrirlo; se avisa
+                 en su lugar y el resto de la pantalla funciona igual (ruteo manual sin verlo). -->
+            <Border Name="AvisoSinVista" Visibility="Collapsed" BorderBrush="Gray" BorderThickness="1" Background="#FFF8F8F8">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="420">
+                    <TextBlock Text="⚠ No se pudo leer este archivo" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                    <TextBlock Name="TxtAvisoSinVista" TextWrapping="Wrap" TextAlignment="Center" Foreground="Gray"/>
+                </StackPanel>
+            </Border>
+        </Grid>
 
         <StackPanel Grid.Column="1">
-            <TextBlock Text="Este documento no tiene texto que se pueda leer" FontSize="14" FontWeight="Bold" TextWrapping="Wrap" Margin="0,0,0,4"/>
+            <TextBlock Name="TxtTitulo" Text="Este documento no tiene texto que se pueda leer" FontSize="14" FontWeight="Bold" TextWrapping="Wrap" Margin="0,0,0,4"/>
             <TextBlock Name="TxtInstruccion" Foreground="Gray" TextWrapping="Wrap" Margin="0,0,0,16"
                        Text="No se puede marcar ningún dato por coordenadas (ej. es una imagen escaneada)."/>
 

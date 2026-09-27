@@ -59,12 +59,22 @@ public enum MotivoPendiente
     RutaFueraDeCarpetaConfigurada,
 
     /// <summary>El nombre de archivo o la ruta completa superan el largo máximo permitido (Caso-9, mejora 1f).</summary>
-    NombreORutaDemasiadoLarga
+    NombreORutaDemasiadoLarga,
+
+    /// <summary>El archivo no se pudo leer como PDF (dañado, vacío o truncado — Caso-11, punto 5). Va a "Pendientes de distribuir" para ruteo manual, igual que un PDF sin texto.</summary>
+    ArchivoDanado
 }
 
 /// <summary>Texto legible para mostrarle al usuario por qué un documento quedó pendiente (Caso-9).</summary>
 public static class MotivoPendienteExtensiones
 {
+    /// <summary>
+    /// Va a "Pendientes de distribuir" (ruteo manual, Caso-4) en vez de "Pendientes por
+    /// reconocer": PDF sin texto extraíble, o archivo que ni siquiera se puede leer (Caso-11, punto 5).
+    /// </summary>
+    public static bool EsPendienteDeDistribuir(this MotivoPendiente motivo) =>
+        motivo is MotivoPendiente.SinTextoExtraible or MotivoPendiente.ArchivoDanado;
+
     public static string DescripcionLegible(this MotivoPendiente motivo) => motivo switch
     {
         MotivoPendiente.NuevoDocumento => "No coincide con ninguna configuración guardada.",
@@ -77,6 +87,7 @@ public static class MotivoPendienteExtensiones
         MotivoPendiente.NombreReservadoPorWindows => "Nombre de archivo reservado por Windows",
         MotivoPendiente.RutaFueraDeCarpetaConfigurada => "La ubicación calculada no corresponde a la carpeta configurada",
         MotivoPendiente.NombreORutaDemasiadoLarga => "Nombre o ruta demasiado larga",
+        MotivoPendiente.ArchivoDanado => "No se pudo leer este archivo (puede estar dañado).",
         _ => motivo.ToString()
     };
 }

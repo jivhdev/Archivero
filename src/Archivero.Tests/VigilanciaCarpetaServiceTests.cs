@@ -133,6 +133,29 @@ public class VigilanciaCarpetaServiceTests : IDisposable
         Assert.Empty(pendientes.ObtenerTodos());
     }
 
+    // ----- Caso-11, punto 5: archivos dañados visibles, nunca ignorados en silencio -----
+
+    [Theory]
+    [InlineData("esto no es un pdf")]
+    [InlineData("")]
+    [InlineData("%PDF-1.4\n1 0 obj << /Type /Catalog")]
+    public void Iniciar_ConUnPdfDanado_LoDejaEnPendientesComoArchivoDanadoSinTocarlo(string contenido)
+    {
+        // Antes: RNF-2 descartaba el archivo en silencio -- quedaba invisible para el usuario,
+        // igual que los "documentos fantasma" de Caso-1.
+        var (observada, _) = CrearCarpetas();
+        var ruta = Path.Combine(observada, "danado.pdf");
+        File.WriteAllText(ruta, contenido);
+
+        using var vigilancia = new VigilanciaCarpetaService(observada);
+        vigilancia.Iniciar();
+
+        var pendiente = Assert.Single(new PendienteRepository().ObtenerTodos());
+        Assert.Equal(ruta, pendiente.RutaArchivo);
+        Assert.Equal(MotivoPendiente.ArchivoDanado, pendiente.Motivo);
+        Assert.Equal(contenido, File.ReadAllText(ruta));
+    }
+
     public void Dispose()
     {
         AuditoriaService.RutaLog = _rutaLogOriginal;

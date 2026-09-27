@@ -14,6 +14,14 @@ public record GuardadoRecienteFila(DateTime Hora, string RutaFinal)
     public string Resumen => $"{Hora:HH:mm:ss} — {Path.GetFileName(RutaFinal)} → {RutaFinal}";
 }
 
+/// <summary>Fila de "Pendientes de distribuir": un archivo dañado lleva el aviso a la vista, para no confundirlo con un PDF sin texto (Caso-11, punto 5).</summary>
+public record PendienteDistribucionFila(ArchivoPendiente Pendiente)
+{
+    public string Texto => Pendiente.Motivo == MotivoPendiente.ArchivoDanado
+        ? $"⚠ {Pendiente.NombreArchivo} — no se pudo leer este archivo"
+        : Pendiente.NombreArchivo;
+}
+
 public partial class MainWindow : Window
 {
     private readonly PendienteRepository _pendientes = new();
@@ -80,8 +88,10 @@ public partial class MainWindow : Window
 
         // Caso-4, punto 1: los PDF sin texto extraible tienen su propia lista ("Pendientes de
         // distribuir"), separada de "Pendientes por reconocer" -- nunca se mezclan.
-        ListaPendientes.ItemsSource = pendientes.Where(p => p.Motivo != MotivoPendiente.SinTextoExtraible).ToList();
-        ListaPendientesDistribucion.ItemsSource = pendientes.Where(p => p.Motivo == MotivoPendiente.SinTextoExtraible).ToList();
+        ListaPendientes.ItemsSource = pendientes.Where(p => !p.Motivo.EsPendienteDeDistribuir()).ToList();
+        ListaPendientesDistribucion.ItemsSource = pendientes.Where(p => p.Motivo.EsPendienteDeDistribuir())
+            .Select(p => new PendienteDistribucionFila(p))
+            .ToList();
 
         _bandeja.ActualizarPendientes(pendientes.Count > 0);
     }
@@ -243,12 +253,12 @@ public partial class MainWindow : Window
 
     private void ListaPendientesDistribucion_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        if (ListaPendientesDistribucion.SelectedItem is not ArchivoPendiente pendiente)
+        if (ListaPendientesDistribucion.SelectedItem is not PendienteDistribucionFila { Pendiente: var pendiente })
         {
             return;
         }
 
-        var identificarSinTexto = new IdentificarSinTextoWindow(pendiente.RutaArchivo) { Owner = this };
+        var identificarSinTexto = new IdentificarSinTextoWindow(pendiente.RutaArchivo, pendiente.Motivo == MotivoPendiente.ArchivoDanado) { Owner = this };
         identificarSinTexto.ShowDialog();
 
         CargarPendientes();
