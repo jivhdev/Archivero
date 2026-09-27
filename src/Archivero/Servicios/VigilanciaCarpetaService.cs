@@ -11,6 +11,7 @@ public class VigilanciaCarpetaService : IDisposable
     private readonly PendienteRepository _pendientes = new();
     private readonly BorradorRepository _borradores = new();
     private readonly ConfiguracionDocumentoRepository _configuraciones = new();
+    private readonly object _candadoProceso = new();
     private FileSystemWatcher? _watcher;
 
     /// <summary>Un PDF nuevo no coincide con ninguna configuración: pasa al flujo de identificación (REQ-003).</summary>
@@ -74,6 +75,23 @@ public class VigilanciaCarpetaService : IDisposable
         _watcher.Error += (_, _) => CarpetaObservadaNoDisponible?.Invoke();
     }
 
+    /// <summary>
+    /// Caso-11, punto 3: vuelve a intentar la coincidencia automática contra todos los
+    /// documentos que están hoy en "pendientes por reconocer" -- no solo contra los que lleguen
+    /// de ahora en adelante. Se llama apenas se crea o edita una configuración, y a mano desde
+    /// el botón "Reprocesar pendientes". Los PDF sin texto extraíble no se reprocesan: nunca se
+    /// clasifican solos, tengan la configuración que tengan (Caso-4).
+    /// </summary>
+    public void ReprocesarPendientes()
+    {
+        ReconciliarPendientesConDisco();
+
+        foreach (var pendiente in _pendientes.ObtenerTodos().Where(p => p.Motivo != MotivoPendiente.SinTextoExtraible))
+        {
+            ProcesarArchivo(pendiente.RutaArchivo, esReproceso: true);
+        }
+    }
+
     private void ManejarArchivoEliminado(string rutaArchivo)
     {
         _borradores.Eliminar(rutaArchivo);
@@ -112,7 +130,17 @@ public class VigilanciaCarpetaService : IDisposable
         }
     }
 
-    private void ProcesarArchivo(string rutaArchivo)
+    private void ProcesarArchivo(string rutaArchivo, bool esReproceso = false)
+    {
+        // Los archivos se procesan de a uno y nunca en paralelo (SPEC.md): el reproceso de
+        // pendientes corre fuera del hilo del FileSystemWatcher, así que hace falta serializarlo.
+        lock (_candadoProceso)
+        {
+            ProcesarArchivoSinBloquear(rutaArchivo, esReproceso);
+        }
+    }
+
+    private void ProcesarArchivoSinBloquear(string rutaArchivo, bool esReproceso)
     {
         try
         {
@@ -121,7 +149,7 @@ public class VigilanciaCarpetaService : IDisposable
                 return;
             }
 
-            AuditoriaService.Registrar("DOCUMENTO_DETECTADO", rutaArchivo);
+            AuditoriaService.Registrar(esReproceso ? "DOCUMENTO_REPROCESADO" : "DOCUMENTO_DETECTADO", rutaArchivo);
 
             // Caso-6, punto 1: el evento Created del FileSystemWatcher dispara apenas Windows
             // crea el archivo destino, no cuando termina de copiarse -- con archivos grandes

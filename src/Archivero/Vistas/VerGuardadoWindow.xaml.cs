@@ -15,6 +15,9 @@ public partial class VerGuardadoWindow : Window
     private readonly string _rutaArchivo;
     private readonly ConfiguracionDocumentoRepository _configuraciones = new();
 
+    /// <summary>Caso-11, punto 3: si se editó la configuración, la ventana principal reprocesa los pendientes al cerrar.</summary>
+    public bool ConfiguracionEditada { get; private set; }
+
     public VerGuardadoWindow(string rutaArchivo)
     {
         InitializeComponent();
@@ -58,6 +61,6 @@ public partial class VerGuardadoWindow : Window
         var owner = Owner;
         var asistente = new IdentificarDocumentoWindow(_rutaArchivo, coincidencia, coincidencia.Patrones.Single(), comenzarEnPasoCarpeta: true) { Owner = owner };
         Close();
-        asistente.ShowDialog();
+        ConfiguracionEditada = asistente.ShowDialog() == true;
     }
 }

@@ -60,6 +60,79 @@ public class VigilanciaCarpetaServiceTests : IDisposable
         }
     }
 
+    // ----- Caso-11, punto 3: pendientes viejos se reclasifican con una configuración nueva -----
+
+    private static Marca MarcaDeLinea(CampoMarca campo, int indiceLinea)
+    {
+        var banda = CreadorPdfDePrueba.ObtenerBandaDeLinea(indiceLinea);
+        return new Marca(campo, 0, banda.X, banda.Y, banda.Ancho, banda.Alto);
+    }
+
+    private static (string Observada, string Destino) CrearCarpetas()
+    {
+        var raiz = Path.Combine(Path.GetTempPath(), "archivero-tests-" + Guid.NewGuid().ToString("N"));
+        var observada = Path.Combine(raiz, "observada");
+        var destino = Path.Combine(raiz, "destino");
+        Directory.CreateDirectory(observada);
+        Directory.CreateDirectory(destino);
+        return (observada, destino);
+    }
+
+    [Fact]
+    public void ReprocesarPendientes_ConUnPendienteQueAhoraCoincide_LoGuardaSoloYLoSacaDePendientes()
+    {
+        // Bug real de Javier: un documento ya estaba en "pendientes por reconocer" cuando se
+        // creó la configuración de su mismo Emisor+Tipo, y se quedó ahí -- tuvo que sacarlo y
+        // volverlo a meter en la carpeta para que Archivero lo procesara.
+        var (observada, destino) = CrearCarpetas();
+        var ruta = CreadorPdfDePrueba.CrearConLineas(observada, "Banco de Prueba SA", "Resumen de cuenta");
+        var pendientes = new PendienteRepository();
+        pendientes.Agregar(ruta, MotivoPendiente.NuevoDocumento);
+
+        new ConfiguracionDocumentoRepository().GuardarNueva(
+            "Banco de Prueba SA", "Resumen de cuenta", destino, FormatoCarpeta.Directo, null, false,
+            [MarcaDeLinea(CampoMarca.Emisor, 0), MarcaDeLinea(CampoMarca.Tipo, 1)]);
+
+        using var vigilancia = new VigilanciaCarpetaService(observada);
+        string? rutaGuardada = null;
+        vigilancia.ArchivoGuardadoAutomaticamente += (_, final) => rutaGuardada = final;
+
+        vigilancia.ReprocesarPendientes();
+
+        Assert.False(File.Exists(ruta));
+        Assert.NotNull(rutaGuardada);
+        Assert.True(File.Exists(rutaGuardada));
+        Assert.Empty(pendientes.ObtenerTodos());
+    }
+
+    [Fact]
+    public void ReprocesarPendientes_ConUnPendienteQueSigueSinCoincidir_LoDejaPendienteYNoLoToca()
+    {
+        var (observada, _) = CrearCarpetas();
+        var ruta = CreadorPdfDePrueba.CrearConLineas(observada, "Otro Proveedor", "Otro Tipo");
+        var pendientes = new PendienteRepository();
+        pendientes.Agregar(ruta, MotivoPendiente.NuevoDocumento);
+
+        using var vigilancia = new VigilanciaCarpetaService(observada);
+        vigilancia.ReprocesarPendientes();
+
+        Assert.True(File.Exists(ruta));
+        Assert.Single(pendientes.ObtenerTodos());
+    }
+
+    [Fact]
+    public void ReprocesarPendientes_ConUnPendienteCuyoArchivoYaNoExiste_LoSacaDeLaLista()
+    {
+        var (observada, _) = CrearCarpetas();
+        var pendientes = new PendienteRepository();
+        pendientes.Agregar(Path.Combine(observada, "ya-no-esta.pdf"), MotivoPendiente.NuevoDocumento);
+
+        using var vigilancia = new VigilanciaCarpetaService(observada);
+        vigilancia.ReprocesarPendientes();
+
+        Assert.Empty(pendientes.ObtenerTodos());
+    }
+
     public void Dispose()
     {
         AuditoriaService.RutaLog = _rutaLogOriginal;

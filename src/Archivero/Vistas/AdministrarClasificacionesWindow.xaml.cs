@@ -22,6 +22,9 @@ public partial class AdministrarClasificacionesWindow : Window
     private readonly EntidadRepository _entidades = new();
     private List<FilaClasificacion> _todas = [];
 
+    /// <summary>Caso-11, punto 3: si se editó alguna configuración, la ventana principal reprocesa los pendientes al cerrar.</summary>
+    public bool HuboConfiguracionesEditadas { get; private set; }
+
     public AdministrarClasificacionesWindow()
     {
         InitializeComponent();
@@ -112,6 +115,7 @@ public partial class AdministrarClasificacionesWindow : Window
         var asistente = new IdentificarDocumentoWindow(dialogoArchivo.FileName, configuracion, patron) { Owner = this };
         if (asistente.ShowDialog() == true)
         {
+            HuboConfiguracionesEditadas = true;
             CargarClasificaciones();
         }
     }
