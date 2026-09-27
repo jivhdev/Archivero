@@ -1,6 +1,8 @@
 Estado actual: En piloto desde 2026-09-13 — pendiente de revisión.
 
-Última actualización del .exe: 2026-09-26, con `preguntas/Caso-9.md` (validación de entradas/rutas contra path traversal y nombres inválidos de Windows, más un log de auditoría de texto plano con rotación) — ver `ESTADO.md`. Caso-1 a Caso-6, Caso-8 y Caso-9 están cerrados; `preguntas/Caso-7.md` sigue pendiente, todavía sin empezar.
+Última actualización del .exe: 2026-09-26, con `preguntas/Caso-11.md` completo: nombre a confirmar cada vez, zoom en la comparación de duplicados, reprocesar pendientes, accesos rápidos en "distribuir", PDFs dañados visibles y quitar ceros a la izquierda. Ver `ESTADO.md`. Caso-1 a Caso-6 y Caso-8 a Caso-11 están cerrados; `preguntas/Caso-7.md` sigue pendiente, todavía sin empezar.
+
+La primera vez que se abra, este `.exe` agrega a la base local la columna `Configuraciones.PreguntarNombre` y la tabla `AtajosGuardadoRapido`. Las configuraciones existentes no cambian.
 
 ## Qué contiene esta carpeta
 - `Archivero.exe`: ejecutable autocontenido de Windows (no requiere .NET instalado). Se abre con doble click.

@@ -4,15 +4,18 @@
 
 ## Última sesión
 - Fecha: 2026-09-26
-- Qué se hizo: `preguntas/Caso-9.md` (validación de entradas/rutas + log de auditoría — preparación de seguridad y trazabilidad antes de repartir Archivero a otros usuarios) implementado y mergeado a `main`, mejora por mejora, siguiendo estrictamente la forma de trabajo pedida: tests que fallan contra el código de hoy, corrección hasta que pasan, un commit por mejora, nota en `ESTADO.md`. Ver detalle en la sección "Caso-9" más abajo. 237 tests automáticos en total (71 nuevos), todos verdes.
-- El `.exe` de `Distribucion/` se regeneró con Caso-9 (ver `Distribucion/ESTADO-DISTRIBUCION.md`).
-- A pedido de Javier, se hizo solo este caso esta sesión — `preguntas/Caso-7.md` sigue pendiente, sin tocar.
+- Qué se hizo: `preguntas/Caso-11.md` (seis ajustes de uso real) implementado y mergeado a `main` completo, un punto por rama/PR (#30 a #35). Ver detalle en la sección "Caso-11" más abajo. 277 tests automáticos en total, todos verdes.
+- Antes, en la misma fecha: Caso-9 (validación + auditoría) y Caso-10 (reporte de evidencia de Caso-9, sin código nuevo — se entregó en el chat para que Javier lo copie a un documento).
+- El `.exe` de `Distribucion/` se regeneró con Caso-11 (ver `Distribucion/ESTADO-DISTRIBUCION.md`).
 
 ## Siguiente paso
+- **Aclarar con Javier la nota "Recordar error de año de las NCV"** (Caso-11, punto 5): no hay ningún contexto sobre eso en el repo, en `ESTADO.md` ni en el historial de git. Queda sin tocar hasta que explique a qué se refiere (¿Notas de Crédito de Venta guardadas en la carpeta del año equivocado?).
+- **Confirmar dos interpretaciones de Caso-11** (detalle en la sección de abajo): punto 1, el nombre se pide desde "Pendientes por reconocer" y no con una ventana que se abre sola; punto 4, la "regla de nombre" de un acceso rápido es la secuencia de botones de limpieza usada esa vez.
+- **Falta la verificación real a mano de Javier** de Caso-11 (pasos de prueba en cada PR, #30 a #35) y de Caso-9 (#28, #29). El agente no puede operar la app de escritorio por su cuenta: solo confirmó que compila y pasa los tests automáticos.
 - **`preguntas/Caso-7.md` está pendiente, sin empezar**: dos puntos independientes — "Imprimir después de archivar" (nueva opción configurable por tipo de documento) y ajustes de ventana. Leer el archivo completo antes de arrancar.
-- **Falta la verificación real a mano de Javier** de Caso-9 — el agente no puede correr la app de escritorio por su cuenta, solo confirmó que compila y pasa los tests automáticos. Pasos de prueba sugeridos en la descripción de los PRs (#28, #29). Ojo en particular con la mejora 2: conviene que Javier abra `%LocalAppData%\Archivero\auditoria.log` después de usar la app un rato y confirme que el contenido es legible y tiene sentido.
 - Sigue arrastrándose sin confirmar: Caso-4 (fecha manual en vez de marcada por coordenadas, sesión 2026-09-15) y la verificación a mano de Caso-6 (sesión 2026-09-16) y Caso-8 (sesión 2026-09-22).
-- Fuera de esto, no queda nada pendiente conocido del alcance de `SPEC.md` + Caso-1 a Caso-6, Caso-8 y Caso-9 (todos cerrados). Sigue abierto, como antes, cerrar los "Open issues" que quedan (nombres finales de interfaz).
+- **Texto de interfaz con voseo**: al hacer Caso-11 apareció voseo en textos que ve el usuario, en pantallas anteriores a este caso: `OrganizacionCarpetaControl`, `ElegirPatronWindow`, `MainWindow` (avisos), `VerGuardadoWindow`, `IdentificarDocumentoWindow` y `CrearPeriodoWindow`. Solo se corrigió en la pantalla de PDFs sin texto, que se tocaba igual. Falta pasar el resto a español neutro.
+- Fuera de esto, no queda nada pendiente conocido del alcance de `SPEC.md` + Caso-1 a Caso-6 y Caso-8 a Caso-11. Sigue abierto, como antes, cerrar los "Open issues" que quedan (nombres finales de interfaz).
 
 ## Caso-1 — 5 correcciones/ampliaciones del piloto real (2026-09-14)
 Ver `preguntas/Caso-1.md` para el texto completo de cada punto tal como lo trajo Javier del vault.
@@ -222,6 +225,34 @@ PR: [#28](https://github.com/jivhdev/Archivero/pull/28).
 **Cómo se verificó:** 13 tests nuevos (`AuditoriaServiceTests`), 11 de los cuales fallaban contra un esqueleto que no escribía nada, antes de implementar la lógica real. Se redirigió `AuditoriaService.RutaLog` en los tests que ahora disparan llamadas de auditoría de forma indirecta (`GuardadoAutomaticoServiceTests`, `VigilanciaCarpetaServiceTests`), y se confirmó a mano que no quedó ningún archivo nuevo en el `%LocalAppData%\Archivero` real de esta máquina tras correr toda la suite.
 
 PR: [#29](https://github.com/jivhdev/Archivero/pull/29).
+
+## Caso-11 — seis ajustes de uso real (2026-09-26)
+Ver `preguntas/Caso-11.md` para el texto completo. Seis puntos independientes, cada uno con su rama, PR y tests. Orden real de trabajo: 6, 2, 3, 5, 4, 1.
+
+### Punto 1 — "Preguntar el nombre cada vez"
+Tercera opción de nombre en el asistente de identificación/edición (`ConfiguracionDocumento.PreguntarNombre`, columna nueva). La carpeta se sigue resolviendo sola: Emisor+Tipo, formato y período. `GuardadoAutomaticoService.Procesar` devuelve `NombrePorConfirmar` y el documento queda en "Pendientes por reconocer" con el texto "— falta confirmar el nombre". Doble click abre `ConfirmarNombreWindow`: el PDF, la carpeta ya calculada y el nombre a escribir. Duplicado y período nuevo se resuelven con las pantallas de siempre, ya con el nombre confirmado. El nombre se pregunta **antes** que el período nuevo; si no, `CrearPeriodoWindow` guardaría con el nombre original. En el asistente, el primer documento pide su nombre en el paso de confirmar.
+- **Interpretación a confirmar:** el caso dice "el sistema muestra el documento y pide el nombre". No se abre una ventana sola cuando llega el archivo, porque REQ-005 pide avisar de los pendientes sin ventanas emergentes. Queda pendiente, con el aviso de la bandeja de siempre.
+- La columna nueva se agrega **después** de la migración de Caso-3, que recrea `Configuraciones` copiando una lista fija de columnas. El test de migración de base vieja ahora lo cubre.
+PR: [#35](https://github.com/jivhdev/Archivero/pull/35).
+
+### Punto 2 — zoom y scroll en la comparación de duplicados
+`ResolverDuplicadoWindow`: cada documento en su propio `ScrollViewer`, un solo slider de zoom para los dos (siempre sincronizado) y la casilla "Mover los dos juntos" (activada por defecto) que sincroniza el scroll por posición relativa. PR: [#31](https://github.com/jivhdev/Archivero/pull/31).
+
+### Punto 3 — reprocesar pendientes
+`VigilanciaCarpetaService.ReprocesarPendientes()` (serializado con el procesamiento normal por un lock) se llama sola al crear, vincular o editar una configuración, y a mano con el botón "Reprocesar pendientes". No toca "Pendientes de distribuir" (sin texto/dañados). PR: [#32](https://github.com/jivhdev/Archivero/pull/32).
+
+### Punto 4 — accesos rápidos en "distribuir"
+Tercera sección en la pantalla de PDFs sin texto o dañados. Al final de "Crear ubicación nueva", al tocar Guardar, se pregunta "¿Guardar esta configuración como acceso rápido?", con un nombre sugerido: carpeta madre y, si organiza por fecha, el tipo de organización. El acceso rápido se persiste recién después de que el documento se guardó bien. Tabla `AtajosGuardadoRapido`, nombre único; un nombre repetido pide confirmar el reemplazo. Usarlo lleva directo al paso de nombre con la regla aplicada. Si organiza por fecha, en ese paso se pide la fecha del documento, con la misma regla que el flujo manual. Una fecha escrita que no se reconoce da error: no cae a "hoy" en silencio.
+- **Interpretación a confirmar:** la "regla de nombre" es la secuencia de botones de limpieza usada esa vez (Borrar / Dejar solo los números / Quitar ceros a la izquierda), repetida sobre el nombre original de cada documento nuevo. Lo escrito a mano no es parte de la regla.
+PR: [#34](https://github.com/jivhdev/Archivero/pull/34).
+
+### Punto 5 — PDFs dañados visibles
+Un archivo que PDFium no puede abrir (basura, vacío, truncado; verificado que tira una excepción limpia, sin tumbar el proceso) va a "Pendientes de distribuir" con `MotivoPendiente.ArchivoDanado` y el aviso "⚠ … — no se pudo leer este archivo". Nunca se toca. La pantalla de ruteo manual funciona igual aunque el visor no lo pueda mostrar.
+- **Sin resolver:** la nota "Recordar error de año de las NCV" (ver "Siguiente paso").
+PR: [#33](https://github.com/jivhdev/Archivero/pull/33).
+
+### Punto 6 — quitar ceros a la izquierda
+Botón nuevo en la limpieza de nombre de PDFs sin texto: `"00123"` → `"123"`; `"1200"` queda igual; solo ceros → `"0"`; un nombre que no es puramente numérico no se toca (`LimpiezaNombreService`). PR: [#30](https://github.com/jivhdev/Archivero/pull/30).
 
 ## Decisiones abiertas / dudas para el usuario
 - Nombres finales de interfaz pendientes (no bloquean el desarrollo) — ver "Open issues" de `SPEC.md`: la sección "pendientes por reconocer", la sección "configuraciones/identificaciones/identidades", el botón de revisar/actualizar disponibilidad, la opción de "vincular a configuración existente".
