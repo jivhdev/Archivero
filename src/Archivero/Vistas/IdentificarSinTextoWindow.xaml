@@ -77,7 +77,9 @@
                 <TextBox Name="TxtNombreArchivo" Margin="0,0,0,8"/>
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                     <Button Content="Borrar" Padding="6,4" Margin="0,0,8,0" Click="BtnBorrarNombre_Click"/>
-                    <Button Content="Dejar solo los números" Padding="6,4" Click="BtnSoloNumeros_Click"/>
+                    <Button Content="Dejar solo los números" Padding="6,4" Margin="0,0,8,0" Click="BtnSoloNumeros_Click"/>
+                    <Button Content="Quitar ceros a la izquierda" Padding="6,4" Click="BtnQuitarCeros_Click"
+                            ToolTip="Solo para nombres que son un número: 00123 queda 123, 1200 no cambia."/>
                 </StackPanel>
                 <Button Name="BtnGuardar" Content="Guardar" Padding="8,6" HorizontalAlignment="Left" Click="BtnGuardar_Click"/>
             </StackPanel>

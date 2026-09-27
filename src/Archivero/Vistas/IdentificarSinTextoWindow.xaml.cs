@@ -243,10 +243,11 @@ public partial class IdentificarSinTextoWindow : Window
 
     private void BtnBorrarNombre_Click(object sender, RoutedEventArgs e) => TxtNombreArchivo.Clear();
 
-    private void BtnSoloNumeros_Click(object sender, RoutedEventArgs e)
-    {
-        TxtNombreArchivo.Text = new string(TxtNombreArchivo.Text.Where(char.IsDigit).ToArray());
-    }
+    private void BtnSoloNumeros_Click(object sender, RoutedEventArgs e) =>
+        TxtNombreArchivo.Text = LimpiezaNombreService.DejarSoloNumeros(TxtNombreArchivo.Text);
+
+    private void BtnQuitarCeros_Click(object sender, RoutedEventArgs e) =>
+        TxtNombreArchivo.Text = LimpiezaNombreService.QuitarCerosIzquierda(TxtNombreArchivo.Text.Trim());
 
     private void BtnGuardar_Click(object sender, RoutedEventArgs e)
     {
