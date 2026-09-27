@@ -39,12 +39,31 @@ public partial class IdentificarSinTextoWindow : Window
     private int _nivelActual;
     private string _carpetaNavegacionActual = string.Empty;
 
-    public IdentificarSinTextoWindow(string rutaArchivo)
+    public IdentificarSinTextoWindow(string rutaArchivo, bool esArchivoDanado = false)
     {
         InitializeComponent();
         _rutaArchivo = rutaArchivo;
 
-        Visor.CargarPdf(rutaArchivo);
+        if (esArchivoDanado)
+        {
+            TxtTitulo.Text = "No se pudo leer este archivo";
+            TxtInstruccion.Text = "Puede estar dañado, vacío o incompleto. Igual podés elegir dónde guardarlo, " +
+                                  "con lo que sepas por el nombre del archivo.";
+        }
+
+        try
+        {
+            Visor.CargarPdf(rutaArchivo);
+        }
+        catch (Exception)
+        {
+            // Caso-11, punto 5: sin vista previa, pero el ruteo manual sigue disponible.
+            Visor.Visibility = Visibility.Collapsed;
+            AvisoSinVista.Visibility = Visibility.Visible;
+            TxtAvisoSinVista.Text = $"{Path.GetFileName(rutaArchivo)}\n\nNo se puede mostrar el documento, " +
+                                    "pero podés guardarlo igual eligiendo una ubicación a la derecha.";
+        }
+
         ControlOrganizacion.ConfigurarProveedorDeFecha(LeerFechaReferencia);
 
         MostrarPanel(PanelElegir);

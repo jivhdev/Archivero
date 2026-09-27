@@ -53,7 +53,7 @@
                 <Button DockPanel.Dock="Right" Content="Recargar" Padding="8,2" Click="BtnRecargarPendientesDistribucion_Click"/>
                 <TextBlock Text="Pendientes de distribuir" FontWeight="Bold" VerticalAlignment="Center"/>
             </DockPanel>
-            <ListBox Grid.Row="1" Name="ListaPendientesDistribucion" DisplayMemberPath="NombreArchivo" MouseDoubleClick="ListaPendientesDistribucion_MouseDoubleClick"/>
+            <ListBox Grid.Row="1" Name="ListaPendientesDistribucion" DisplayMemberPath="Texto" MouseDoubleClick="ListaPendientesDistribucion_MouseDoubleClick"/>
         </Grid>
 
         <Grid Grid.Row="4">
