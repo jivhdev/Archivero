@@ -103,15 +103,18 @@ public class BaseDeDatosMigracionTests : IDisposable
         Assert.Equal(@"yyyy\MM", config.PatronCarpeta);
         Assert.True(config.Renombrar);
         Assert.False(config.AbrirDespuesDeGuardar);
+        Assert.False(config.PreguntarNombre);
         Assert.Single(config.Patrones);
         Assert.Equal(CampoMarca.Fecha, Assert.Single(config.Patrones[0].Marcas).Campo);
 
-        // El CHECK nuevo acepta los tipos de Caso-3.
-        repo.ActualizarDestino(config.Id, @"C:\Destino", FormatoCarpeta.SemanaDelMes, @"MM\'Semana 'N", true, true);
+        // El CHECK nuevo acepta los tipos de Caso-3, y la columna de Caso-11 sobrevive a la
+        // recreación de la tabla (se agrega después de reconstruirla, no antes).
+        repo.ActualizarDestino(config.Id, @"C:\Destino", FormatoCarpeta.SemanaDelMes, @"MM\'Semana 'N", true, true, true);
         var actualizada = repo.BuscarPorEmisorYTipo("Proveedor X", "Factura")!;
         Assert.Equal(FormatoCarpeta.SemanaDelMes, actualizada.FormatoCarpeta);
         Assert.Equal(@"MM\'Semana 'N", actualizada.PatronCarpeta);
         Assert.True(actualizada.AbrirDespuesDeGuardar);
+        Assert.True(actualizada.PreguntarNombre);
 
         // Y crear configuraciones nuevas sigue funcionando tras la recreación de la tabla
         // (AUTOINCREMENT intacto).

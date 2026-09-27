@@ -14,6 +14,10 @@ public class BorradorAsistente
 
     public string? PatronCarpeta { get; set; }
     public bool? Renombrar { get; set; }
+
+    /// <summary>Caso-11, punto 1: la tercera opción de nombre. Null en borradores anteriores (equivale a no elegida).</summary>
+    public bool? PreguntarNombre { get; set; }
+
     public List<Marca> Marcas { get; set; } = [];
 }
 

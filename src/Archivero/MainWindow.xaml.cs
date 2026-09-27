@@ -22,6 +22,14 @@ public record PendienteDistribucionFila(ArchivoPendiente Pendiente)
         : Pendiente.NombreArchivo;
 }
 
+/// <summary>Fila de "Pendientes por reconocer": un documento que solo espera el nombre lo dice, para no confundirlo con uno sin identificar (Caso-11, punto 1).</summary>
+public record PendienteReconocerFila(ArchivoPendiente Pendiente)
+{
+    public string Texto => Pendiente.Motivo == MotivoPendiente.NombrePorConfirmar
+        ? $"{Pendiente.NombreArchivo} — falta confirmar el nombre"
+        : Pendiente.NombreArchivo;
+}
+
 public partial class MainWindow : Window
 {
     private readonly PendienteRepository _pendientes = new();
@@ -88,7 +96,9 @@ public partial class MainWindow : Window
 
         // Caso-4, punto 1: los PDF sin texto extraible tienen su propia lista ("Pendientes de
         // distribuir"), separada de "Pendientes por reconocer" -- nunca se mezclan.
-        ListaPendientes.ItemsSource = pendientes.Where(p => !p.Motivo.EsPendienteDeDistribuir()).ToList();
+        ListaPendientes.ItemsSource = pendientes.Where(p => !p.Motivo.EsPendienteDeDistribuir())
+            .Select(p => new PendienteReconocerFila(p))
+            .ToList();
         ListaPendientesDistribucion.ItemsSource = pendientes.Where(p => p.Motivo.EsPendienteDeDistribuir())
             .Select(p => new PendienteDistribucionFila(p))
             .ToList();
@@ -217,12 +227,16 @@ public partial class MainWindow : Window
 
     private void ListaPendientes_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        if (ListaPendientes.SelectedItem is not ArchivoPendiente pendiente)
+        if (ListaPendientes.SelectedItem is not PendienteReconocerFila { Pendiente: var pendiente })
         {
             return;
         }
 
-        if (pendiente.Motivo == MotivoPendiente.Duplicado)
+        if (pendiente.Motivo == MotivoPendiente.NombrePorConfirmar)
+        {
+            AbrirConfirmacionDeNombre(pendiente.RutaArchivo);
+        }
+        else if (pendiente.Motivo == MotivoPendiente.Duplicado)
         {
             AbrirResolucionDeDuplicado(pendiente.RutaArchivo);
         }
@@ -297,6 +311,35 @@ public partial class MainWindow : Window
 
         var resolver = new ResolverDuplicadoWindow(rutaArchivo, rutaDestinoConflicto) { Owner = this };
         resolver.ShowDialog();
+    }
+
+    private void AbrirConfirmacionDeNombre(string rutaArchivo)
+    {
+        if (!File.Exists(rutaArchivo))
+        {
+            return;
+        }
+
+        // Igual que duplicado y período nuevo: se recalcula en el momento, no se guarda en la base.
+        var configuraciones = _configuraciones.ObtenerTodasConPatrones();
+        var coincidencia = CoincidenciaAutomaticaService.BuscarConfiguracionQueCoincide(rutaArchivo, configuraciones);
+        if (coincidencia is null)
+        {
+            AbrirAsistenteIdentificacion(rutaArchivo);
+            return;
+        }
+
+        var (campos, error) = GuardadoAutomaticoService.ExtraerCamposParaClasificar(rutaArchivo, coincidencia with { Renombrar = false });
+        if (campos is null)
+        {
+            System.Windows.MessageBox.Show(this,
+                $"No se pudo volver a leer los datos de este documento ({error}). Revisar el patrón desde \"Administrar clasificaciones\".",
+                "Archivero", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var ventana = new ConfirmarNombreWindow(rutaArchivo, coincidencia, campos) { Owner = this };
+        ventana.ShowDialog();
     }
 
     private void AbrirCreacionDePeriodo(string rutaArchivo)

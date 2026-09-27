@@ -62,7 +62,10 @@ public enum MotivoPendiente
     NombreORutaDemasiadoLarga,
 
     /// <summary>El archivo no se pudo leer como PDF (dañado, vacío o truncado — Caso-11, punto 5). Va a "Pendientes de distribuir" para ruteo manual, igual que un PDF sin texto.</summary>
-    ArchivoDanado
+    ArchivoDanado,
+
+    /// <summary>Coincidió con una configuración que pide confirmar el nombre cada vez (Caso-11, punto 1): la carpeta ya está resuelta, falta el nombre.</summary>
+    NombrePorConfirmar
 }
 
 /// <summary>Texto legible para mostrarle al usuario por qué un documento quedó pendiente (Caso-9).</summary>
@@ -88,6 +91,7 @@ public static class MotivoPendienteExtensiones
         MotivoPendiente.RutaFueraDeCarpetaConfigurada => "La ubicación calculada no corresponde a la carpeta configurada",
         MotivoPendiente.NombreORutaDemasiadoLarga => "Nombre o ruta demasiado larga",
         MotivoPendiente.ArchivoDanado => "No se pudo leer este archivo (puede estar dañado).",
+        MotivoPendiente.NombrePorConfirmar => "Falta confirmar el nombre con el que se guarda.",
         _ => motivo.ToString()
     };
 }
@@ -119,6 +123,13 @@ public record ConfiguracionDocumento
 
     /// <summary>Caso-1, punto 5: si está activo, abre el archivo en el visor de PDF del sistema apenas se guarda solo.</summary>
     public bool AbrirDespuesDeGuardar { get; init; }
+
+    /// <summary>
+    /// Caso-11, punto 1: la carpeta se resuelve sola como siempre, pero el nombre no se extrae ni
+    /// se mantiene: antes de guardar, el documento queda esperando que el usuario lo escriba o
+    /// confirme. Excluyente con <see cref="Renombrar"/> (que queda en false).
+    /// </summary>
+    public bool PreguntarNombre { get; init; }
 }
 
 /// <summary>

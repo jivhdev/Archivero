@@ -65,6 +65,9 @@
                 <TextBlock Text="Nombre con el que se guarda el archivo" FontWeight="Bold" Margin="0,0,0,8"/>
                 <RadioButton Name="RbMantenerNombre" Content="Mantener el nombre original" Margin="0,0,0,6" Checked="OpcionNombre_Changed"/>
                 <RadioButton Name="RbExtraerNombre" Content="Extraer de una coordenada del PDF" Margin="0,0,0,6" Checked="OpcionNombre_Changed"/>
+                <RadioButton Name="RbPreguntarNombre" Content="Preguntar el nombre cada vez" Margin="0,0,0,2" Checked="OpcionNombre_Changed"/>
+                <TextBlock Foreground="Gray" TextWrapping="Wrap" Margin="20,0,0,6"
+                           Text="La carpeta se sigue eligiendo sola; antes de guardar, el documento queda en &quot;Pendientes por reconocer&quot; para escribir o confirmar su nombre."/>
 
                 <StackPanel Name="PanelMarcarNombre" Visibility="Collapsed" Margin="0,8,0,0">
                     <Button Name="BtnMarcarNombreArchivo" Content="Marcar el campo en el PDF" Margin="0,0,0,4" Padding="6,4" Click="BtnMarcarNombreArchivo_Click"/>
@@ -75,6 +78,13 @@
             <!-- Paso 5: Confirmar -->
             <StackPanel Name="PanelConfirmar" Visibility="Collapsed">
                 <TextBlock Name="TxtResumen" TextWrapping="Wrap" Margin="0,0,0,12"/>
+
+                <!-- Caso-11, punto 1: con "Preguntar el nombre cada vez", también para este primer documento -->
+                <StackPanel Name="PanelNombreEsteDocumento" Visibility="Collapsed" Margin="0,0,0,12">
+                    <TextBlock Text="Nombre para este documento" FontWeight="Bold" Margin="0,0,0,4"/>
+                    <TextBox Name="TxtNombreEsteDocumento"/>
+                </StackPanel>
+
                 <CheckBox Name="ChkAbrirDespuesDeGuardar" Content="Abrir el documento después de guardarlo automáticamente" Checked="ChkAbrirDespuesDeGuardar_Changed" Unchecked="ChkAbrirDespuesDeGuardar_Changed"/>
             </StackPanel>
 

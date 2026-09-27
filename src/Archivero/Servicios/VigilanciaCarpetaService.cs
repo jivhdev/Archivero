@@ -268,6 +268,14 @@ public class VigilanciaCarpetaService : IDisposable
                 }
                 break;
 
+            case ResultadoGuardadoAutomatico.NombrePorConfirmar:
+                // Caso-11, punto 1: sin ventana emergente (REQ-005); queda en pendientes y la bandeja avisa.
+                if (AgregarAPendientes(rutaArchivo, MotivoPendiente.NombrePorConfirmar))
+                {
+                    ArchivoRequiereAtencion?.Invoke(rutaArchivo, resultado.Resultado.ToString());
+                }
+                break;
+
             case ResultadoGuardadoAutomatico.ValidacionFallida:
                 // Caso-9, mejora 1(g): nunca un guardado silencioso -- motivo específico y legible.
                 if (AgregarAPendientes(rutaArchivo, resultado.MotivoValidacion!.Value))

@@ -36,7 +36,7 @@
                         ToolTip="Vuelve a intentar reconocer todos los pendientes contra las configuraciones guardadas."/>
                 <TextBlock Text="Pendientes por reconocer" FontWeight="Bold" VerticalAlignment="Center"/>
             </DockPanel>
-            <ListBox Grid.Row="1" Name="ListaPendientes" DisplayMemberPath="NombreArchivo" MouseDoubleClick="ListaPendientes_MouseDoubleClick"/>
+            <ListBox Grid.Row="1" Name="ListaPendientes" DisplayMemberPath="Texto" MouseDoubleClick="ListaPendientes_MouseDoubleClick"/>
         </Grid>
 
         <Grid Grid.Row="3" Margin="0,0,0,16">

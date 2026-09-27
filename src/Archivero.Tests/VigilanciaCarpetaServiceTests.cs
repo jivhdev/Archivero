@@ -156,6 +156,50 @@ public class VigilanciaCarpetaServiceTests : IDisposable
         Assert.Equal(contenido, File.ReadAllText(ruta));
     }
 
+    // ----- Caso-11, punto 1: "Preguntar el nombre cada vez" -----
+
+    [Fact]
+    public void Iniciar_ConUnaConfiguracionQuePreguntaElNombre_LoDejaPendienteDeConfirmarYAvisaSinTocarlo()
+    {
+        var (observada, destino) = CrearCarpetas();
+        var ruta = CreadorPdfDePrueba.CrearConLineas(observada, "Banco de Prueba SA", "Resumen de cuenta");
+
+        new ConfiguracionDocumentoRepository().GuardarNueva(
+            "Banco de Prueba SA", "Resumen de cuenta", destino, FormatoCarpeta.Directo, null, false,
+            [MarcaDeLinea(CampoMarca.Emisor, 0), MarcaDeLinea(CampoMarca.Tipo, 1)], preguntarNombre: true);
+
+        using var vigilancia = new VigilanciaCarpetaService(observada);
+        var avisos = 0;
+        vigilancia.ArchivoRequiereAtencion += (_, _) => avisos++;
+
+        vigilancia.Iniciar();
+
+        Assert.True(File.Exists(ruta));
+        Assert.Empty(Directory.GetFiles(destino));
+        Assert.Equal(MotivoPendiente.NombrePorConfirmar, Assert.Single(new PendienteRepository().ObtenerTodos()).Motivo);
+        Assert.Equal(1, avisos);
+    }
+
+    [Fact]
+    public void ReprocesarPendientes_ConUnaConfiguracionQuePreguntaElNombre_CambiaElMotivoSinTocarElArchivo()
+    {
+        var (observada, destino) = CrearCarpetas();
+        var ruta = CreadorPdfDePrueba.CrearConLineas(observada, "Banco de Prueba SA", "Resumen de cuenta");
+        var pendientes = new PendienteRepository();
+        pendientes.Agregar(ruta, MotivoPendiente.NuevoDocumento);
+
+        new ConfiguracionDocumentoRepository().GuardarNueva(
+            "Banco de Prueba SA", "Resumen de cuenta", destino, FormatoCarpeta.Directo, null, false,
+            [MarcaDeLinea(CampoMarca.Emisor, 0), MarcaDeLinea(CampoMarca.Tipo, 1)], preguntarNombre: true);
+
+        using var vigilancia = new VigilanciaCarpetaService(observada);
+        vigilancia.ReprocesarPendientes();
+
+        Assert.True(File.Exists(ruta));
+        Assert.Empty(Directory.GetFiles(destino));
+        Assert.Equal(MotivoPendiente.NombrePorConfirmar, Assert.Single(pendientes.ObtenerTodos()).Motivo);
+    }
+
     public void Dispose()
     {
         AuditoriaService.RutaLog = _rutaLogOriginal;
